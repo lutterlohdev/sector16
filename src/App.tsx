@@ -35,7 +35,7 @@ const INITIAL_STATE: GameState = {
   luck: 0,
   xp: 0,
   inventory: [],
-  globalCoords: { x: 8, y: 8 },
+  globalCoords: { x: 40, y: 24 },
   lastJumpTime: Date.now(),
   miningTimer: 5,
   minersCount: 1,
@@ -139,7 +139,7 @@ export default function App() {
   const moveGlobal = (dx: number, dy: number) => {
     setState(prev => {
       if (!prev) return prev;
-      const currentGlobal = prev.globalCoords || { x: 8, y: 8 };
+      const currentGlobal = prev.globalCoords || { x: 40, y: 24 };
       const newX = Math.max(0, Math.min(63, currentGlobal.x + dx));
       const newY = Math.max(0, Math.min(63, currentGlobal.y + dy));
 
@@ -149,10 +149,7 @@ export default function App() {
       const sector = MAP[sectorIndex];
       
       // Check for encounter chance on move - NO encounters in Trade Hubs
-      let encounterChance = 0.05;
-      if (sector.type === 'The Void') encounterChance = 0.1;
-      if (sector.type === 'Ruin Sector') encounterChance = 0.2;
-      if (sector.type === 'Trade Hub') encounterChance = 0;
+      let encounterChance = sector.type === 'Trade Hub' ? 0 : 0.05;
 
       if (encounterChance > 0 && Math.random() < encounterChance) {
         setTimeout(() => triggerEncounter(sector.type === 'Ruin Sector'), 0);
@@ -342,11 +339,9 @@ export default function App() {
     });
 
     // Random Encounter
-    if (newSector.type === 'The Void' || newSector.type === 'Ruin Sector') {
-      const chance = newSector.type === 'Ruin Sector' ? 0.8 : 0.3;
-      if (Math.random() < chance) {
-        triggerEncounter(newSector.type === 'Ruin Sector');
-      }
+    const encounterChance = newSector.type === 'Trade Hub' ? 0 : 0.05;
+    if (encounterChance > 0 && Math.random() < encounterChance) {
+      triggerEncounter(newSector.type === 'Ruin Sector');
     }
   };
 
@@ -639,7 +634,7 @@ export default function App() {
         if (nextDefense <= 0) {
           // Death State: Reset stats, teleport to Trade Hub, lose credits
           const tradeHub = MAP.find(s => s.type === 'Trade Hub');
-          const hubCoords = tradeHub ? { x: tradeHub.coords.c * 16 + 8, y: tradeHub.coords.r * 16 + 8 } : { x: 8, y: 8 };
+          const hubCoords = tradeHub ? { x: tradeHub.coords.c * 16 + 8, y: tradeHub.coords.r * 16 + 8 } : { x: 40, y: 24 };
           
           // Keep Rare Space Junk (value >= 256)
           const nextInventory = prev.inventory.filter(item => item.value >= 256);
