@@ -32,8 +32,6 @@ const INITIAL_STATE: GameState = {
   cargoCapacity: 10,
   power: 1,
   defense: 1,
-  luck: 0,
-  xp: 0,
   inventory: [],
   globalCoords: { x: 40, y: 24 },
   lastJumpTime: Date.now(),
@@ -170,9 +168,7 @@ export default function App() {
       if (sector.type === 'Ruin Sector') sectorMultiplier = 2; // was 2.5
       if (sector.type === 'Trade Hub') sectorMultiplier = 0;
 
-      // Luck and XP bonus
-      const luckBonus = (prev.luck + prev.xp * 0.0005) * 0.5; // halved XP contribution
-      const successThreshold = (1 + luckBonus) * sectorMultiplier;
+      const successThreshold = sectorMultiplier;
       
       const foundItem = (Math.random() * baseOdds < successThreshold) ? candidateItem : null;
 
@@ -186,7 +182,6 @@ export default function App() {
           ...prev,
           globalCoords: { x: newX, y: newY },
           inventory: [...prev.inventory, foundItem],
-          xp: prev.xp + 2,
           moveCount: nextMoveCount
         };
       }
@@ -194,7 +189,6 @@ export default function App() {
       return {
         ...prev,
         globalCoords: { x: newX, y: newY },
-        xp: prev.xp + 0.1,
         moveCount: nextMoveCount
       };
     });
@@ -243,10 +237,7 @@ export default function App() {
     return state.defense;
   }, [state]);
 
-  const totalLuck = useMemo(() => {
-    if (!state) return 0;
-    return state.luck;
-  }, [state]);
+
 
   const jumpTo = (index: number) => {
     if (!state || isJumping) return;
@@ -285,7 +276,6 @@ export default function App() {
       let nextMiningTimer = prev.miningTimer - 1;
       let nextNocturnium = prev.nocturnium;
       let nextCredits = prev.credits;
-      let nextXp = prev.xp + 5;
 
       // Mining yield
       if (nextMiningTimer <= 0) {
@@ -307,7 +297,6 @@ export default function App() {
 
       // Nebula Damage
       if (newSector.type === 'Nebula') {
-        nextXp += 10; // Extra XP for nebula navigation
         if (Math.random() < 0.2) {
           const upgrades = ['cargo', 'shields', 'weapons'] as const;
           const target = upgrades[Math.floor(Math.random() * upgrades.length)];
@@ -320,7 +309,6 @@ export default function App() {
               globalCoords: { x: sectorCol * 16 + 8, y: sectorRow * 16 + 8 },
               miningTimer: nextMiningTimer,
               nocturnium: nextNocturnium,
-              xp: nextXp,
               damagedUpgrades: { ...prev.damagedUpgrades, [target]: true }
             };
           }
@@ -333,8 +321,7 @@ export default function App() {
         ...prev,
         globalCoords: { x: sectorCol * 16 + 8, y: sectorRow * 16 + 8 },
         miningTimer: nextMiningTimer,
-        nocturnium: nextNocturnium,
-        xp: nextXp
+        nocturnium: nextNocturnium
       };
     });
 
@@ -380,20 +367,17 @@ export default function App() {
         addLog("Cargo full! Cannot mine more.");
         return;
       }
-      setState(prev => prev ? ({ ...prev, nocturnium: prev.nocturnium + yield_, xp: prev.xp + 2 }) : null);
+      setState(prev => prev ? ({ ...prev, nocturnium: prev.nocturnium + yield_ }) : null);
       addLog(`Mined ${yield_} Nocturnium.`);
     }
   };
 
   const buyUpgrade = (type: 'cargo' | 'shields' | 'weapons') => {
     if (!state) return;
-    const level = Math.floor(state.xp / 500);
     const basePrice = type === 'weapons' ? 100 : 50;
     const count = state.upgrades[type];
     
-    // Cost resets/reduces based on level
-    const effectiveCount = Math.max(0, count - (level * 2));
-    const cost = Math.floor(basePrice * Math.pow(1.6, effectiveCount));
+    const cost = Math.floor(basePrice * Math.pow(1.6, count));
 
     if (state.credits >= cost) {
       setState(prev => {
@@ -413,8 +397,7 @@ export default function App() {
           upgrades: nextUpgrades,
           power: nextPower,
           defense: nextDefense,
-          cargoCapacity: nextCargo,
-          xp: prev.xp + 10
+          cargoCapacity: nextCargo
         };
       });
       addLog(`Purchased ${type} upgrade for ${cost} credits.`);
@@ -425,11 +408,9 @@ export default function App() {
 
   const repairUpgrade = (type: 'cargo' | 'shields' | 'weapons') => {
     if (!state || !state.damagedUpgrades[type]) return;
-    const level = Math.floor(state.xp / 500);
     const basePrice = type === 'weapons' ? 100 : 50;
     const count = state.upgrades[type];
-    const effectiveCount = Math.max(0, count - (level * 2));
-    const currentCost = Math.floor(basePrice * Math.pow(1.6, effectiveCount));
+    const currentCost = Math.floor(basePrice * Math.pow(1.6, count));
     const repairCost = Math.floor(currentCost * 0.2);
 
     if (state.credits >= repairCost) {
@@ -456,8 +437,7 @@ export default function App() {
       ...prev,
       credits: prev.credits + total,
       nocturnium: 0,
-      inventory: [],
-      xp: prev.xp + Math.floor(total / 10)
+      inventory: []
     }) : null);
     addLog(`Sold all cargo for ${total} credits.`);
   };
@@ -471,8 +451,7 @@ export default function App() {
       return {
         ...prev,
         credits: prev.credits + item.value,
-        inventory: nextInventory,
-        xp: prev.xp + Math.floor(item.value / 10)
+        inventory: nextInventory
       };
     });
   };
@@ -485,8 +464,7 @@ export default function App() {
       return {
         ...prev,
         credits: prev.credits + value,
-        nocturnium: prev.nocturnium - amount,
-        xp: prev.xp + Math.floor(value / 10)
+        nocturnium: prev.nocturnium - amount
       };
     });
   };
@@ -543,8 +521,7 @@ export default function App() {
         if (!prev) return prev;
         return {
           ...prev,
-          power: Math.max(1, prev.power + pWinsLocal - nWinsLocal),
-          xp: prev.xp + (pWinsLocal * 10)
+          power: Math.max(1, prev.power + pWinsLocal - nWinsLocal)
         };
       });
 
@@ -561,8 +538,7 @@ export default function App() {
           if (Math.random() < (prev.type === 'ruin' ? 0.8 : 0.3)) {
              const candidate = SPACE_JUNK[Math.floor(Math.random() * SPACE_JUNK.length)];
              const baseOdds = candidate.value / 4;
-             const luckBonus = (totalLuck + state.xp * 0.001) * 0.5;
-             const successThreshold = (1 + luckBonus) * 2; // Combat bonus
+             const successThreshold = 2; // Combat bonus
              if (Math.random() * baseOdds < successThreshold) {
                 foundItem = candidate;
              }
@@ -578,8 +554,7 @@ export default function App() {
               return {
                 ...s,
                 credits: s.credits + loot,
-                inventory: nextInventory,
-                xp: s.xp + 100
+                inventory: nextInventory
               };
             });
           }, 0);
@@ -655,9 +630,7 @@ export default function App() {
             globalCoords: hubCoords,
             upgrades: { cargo: 0, shields: 0, weapons: 1 },
             damagedUpgrades: { cargo: false, shields: false, weapons: false },
-            cargoCapacity: 10,
-            luck: 0,
-            xp: Math.floor(prev.xp * 0.5) // Optional: lose some XP too
+            cargoCapacity: 10
           };
         }
 
@@ -698,9 +671,8 @@ export default function App() {
     <div className="flex flex-col h-screen bg-black text-white font-mono overflow-hidden crt">
       {/* Top Bar */}
       <div className="flex justify-between items-center p-4 border-b-2 border-white bg-black z-10">
-        <div className="flex flex-col">
+        <div className="flex flex-col justify-center">
           <span className="text-lg font-bold tracking-tighter">{state.shipName}</span>
-          <span className="text-xs opacity-70">XP: {Math.floor(state.xp)}</span>
         </div>
         <div className="flex gap-6">
           <div className="flex items-center gap-2">
@@ -927,11 +899,9 @@ export default function App() {
                       <div className="grid grid-cols-1 gap-2 mt-4">
                         <p className="text-xs border-b border-white pb-1">UPGRADES</p>
                         {(['cargo', 'shields', 'weapons'] as const).map(type => {
-                          const level = Math.floor(state.xp / 500);
                           const basePrice = type === 'weapons' ? 100 : 50;
                           const count = state.upgrades[type];
-                          const effectiveCount = Math.max(0, count - (level * 2));
-                          const cost = Math.floor(basePrice * Math.pow(1.6, effectiveCount));
+                          const cost = Math.floor(basePrice * Math.pow(1.6, count));
                           const isDamaged = state.damagedUpgrades[type];
                           const repairCost = Math.floor(cost * 0.2);
 

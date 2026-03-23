@@ -18,8 +18,6 @@ export interface GameState {
   cargoCapacity: number;
   power: number;
   defense: number;
-  luck: number;
-  xp: number;
   inventory: Item[];
   globalCoords: { x: number; y: number }; // 0-63 global grid (4x4 sectors of 16x16)
   lastJumpTime: number;
