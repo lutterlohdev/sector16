@@ -1,0 +1,258 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { useState, useEffect } from 'react';
+import { AnimatePresence } from 'motion/react';
+import { DiscoveryState } from './types';
+import { useGameState } from './hooks/useGameState';
+import { useMovement } from './hooks/useMovement';
+import { useJump } from './hooks/useJump';
+import { useEncounter } from './hooks/useEncounter';
+import { useTrading } from './hooks/useTrading';
+import ShipNameEntry from './components/ShipNameEntry';
+import TopBar from './components/TopBar';
+import BottomNav from './components/BottomNav';
+import GameLog from './components/GameLog';
+import JumpOverlay from './components/JumpOverlay';
+import ResetConfirmOverlay from './components/ResetConfirmOverlay';
+import MapView from './components/MapView';
+import SectorPanel from './components/SectorPanel';
+import InventoryModal from './components/modals/InventoryModal';
+import StorageModal from './components/modals/StorageModal';
+import DiscoveryModal from './components/modals/DiscoveryModal';
+import WizardModal from './components/modals/WizardModal';
+import EncounterModal from './components/modals/EncounterModal';
+
+export default function App() {
+  // Core game state
+  const {
+    state, setState, addLog, resetGame,
+    currentSector, isAtStorageLocker, isAtUpgradeCenter, totalPower
+  } = useGameState();
+
+  // UI state
+  const [showInventory, setShowInventory] = useState(false);
+  const [showStorage, setShowStorage] = useState(false);
+  const [wizardEncounter, setWizardEncounter] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [discovery, setDiscovery] = useState<DiscoveryState | null>(null);
+  const [mobileTab, setMobileTab] = useState<'log' | 'sector'>('log');
+
+  // Encounter hook
+  const {
+    encounter, setEncounter, totalDefense,
+    triggerEncounter, handleEncounterAction
+  } = useEncounter(state, setState, addLog);
+
+  // Movement hook
+  const { moveGlobal } = useMovement(setState, {
+    onDiscovery: (d: DiscoveryState) => setDiscovery(d),
+    onTriggerEncounter: (isRuin: boolean) => triggerEncounter(isRuin),
+    onWizardEncounter: () => setWizardEncounter(true),
+  });
+
+  // Jump hook
+  const { isJumping, jumpProgress, jumpTo } = useJump(state, setState, addLog);
+
+  // Trading hook
+  const {
+    sellAll, sellItem, sellNocturnium,
+    buyUpgrade, repairJumpDrive, installMinerUpgrade, installJumpDrive
+  } = useTrading(state, setState, addLog);
+
+  // Global keyboard listeners
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore keydowns if user is typing in an input field
+      if (document.activeElement?.tagName === 'INPUT') return;
+
+      // Global Escape handling for non-critical modals
+      if (e.key === 'Escape') {
+        if (showInventory) setShowInventory(false);
+        if (showStorage) setShowStorage(false);
+        if (showResetConfirm) setShowResetConfirm(false);
+        return; // Don't process other keys if we just closed a modal
+      }
+
+      // Check if we are currently blocked by a popup that prevents movement/hotkeys
+      const isBlocked = isJumping || encounter || showInventory || showStorage || showResetConfirm || discovery || wizardEncounter;
+
+      if (!isBlocked && state) {
+        // I or C toggles inventory
+        if (e.key.toLowerCase() === 'i' || e.key.toLowerCase() === 'c') {
+          setShowInventory(true);
+          return;
+        }
+
+        // O opens storage locker if at the right spot
+        if (e.key.toLowerCase() === 'o') {
+          if (currentSector?.name === "Endless Summer Station" && isAtStorageLocker) {
+            setShowStorage(true);
+            return;
+          }
+        }
+
+        let dx = 0;
+        let dy = 0;
+
+        if (e.key === 'ArrowUp') dy = -1;
+        if (e.key === 'ArrowDown') dy = 1;
+        if (e.key === 'ArrowLeft') dx = -1;
+        if (e.key === 'ArrowRight') dx = 1;
+
+        if (dx !== 0 || dy !== 0) {
+          moveGlobal(dx, dy);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state, isJumping, encounter, showInventory, discovery, showResetConfirm, moveGlobal]);
+
+  if (!state) return <div className="flex items-center justify-center h-screen bg-black text-white font-mono">LOADING...</div>;
+
+  if (state.shipName === '') {
+    return <ShipNameEntry state={state} setState={setState} />;
+  }
+
+  return (
+    <div className="flex flex-col h-screen bg-black text-white font-mono overflow-hidden crt">
+      <TopBar
+        shipName={state.shipName}
+        credits={state.credits}
+        inventoryCount={state.inventory.length}
+        nocturnium={state.nocturnium}
+        cargoCapacity={state.cargoCapacity}
+        onResetClick={() => setShowResetConfirm(true)}
+      />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col-reverse md:flex-row overflow-hidden relative">
+        <AnimatePresence>
+          {isJumping && <JumpOverlay isJumping={isJumping} jumpProgress={jumpProgress} />}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showResetConfirm && (
+            <ResetConfirmOverlay
+              show={showResetConfirm}
+              onCancel={() => setShowResetConfirm(false)}
+              onReset={() => { resetGame(); setShowResetConfirm(false); }}
+            />
+          )}
+        </AnimatePresence>
+
+        <MapView
+          state={state}
+          currentSector={currentSector}
+          onJumpTo={jumpTo}
+          isJumping={isJumping}
+          moveGlobal={moveGlobal}
+        />
+
+        {/* Right Panel: Sector Details & Actions */}
+        <div className={`w-full md:w-1/2 flex flex-col bg-black overflow-hidden ${mobileTab === 'sector' ? 'flex-1 md:flex-1' : 'shrink-0 md:flex-1'}`}>
+          <div className="md:hidden flex border-b border-white shrink-0">
+            <button 
+              className={`flex-1 py-2 text-[10px] font-bold tracking-widest ${mobileTab === 'log' ? 'bg-white text-black' : 'text-white/50'}`} 
+              onClick={() => setMobileTab('log')}
+            >
+              ACTIVITY LOG
+            </button>
+            <button 
+              className={`flex-1 py-2 text-[10px] font-bold tracking-widest ${mobileTab === 'sector' ? 'bg-white text-black' : 'text-white/50'}`} 
+              onClick={() => setMobileTab('sector')}
+            >
+              SECTOR INFO
+            </button>
+          </div>
+
+          {currentSector && (
+            <div className={`flex-1 overflow-y-auto ${mobileTab === 'sector' ? 'flex' : 'hidden'} md:flex flex-col`}>
+              <SectorPanel
+                state={state}
+                currentSector={currentSector}
+                isAtStorageLocker={isAtStorageLocker}
+                isAtUpgradeCenter={isAtUpgradeCenter}
+                onShowStorage={() => setShowStorage(true)}
+                sellNocturnium={sellNocturnium}
+                sellItem={sellItem}
+                sellAll={sellAll}
+                buyUpgrade={buyUpgrade}
+                repairJumpDrive={repairJumpDrive}
+                installMinerUpgrade={installMinerUpgrade}
+                installJumpDrive={installJumpDrive}
+              />
+            </div>
+          )}
+
+          <div className={`${mobileTab === 'log' ? 'flex' : 'hidden'} md:flex md:flex-none shrink-0`}>
+            <GameLog log={state.log} />
+          </div>
+        </div>
+      </div>
+
+      <BottomNav
+        totalPower={totalPower}
+        totalDefense={totalDefense}
+        hasCloakingSpell={state.hasCloakingSpell}
+        cloakCharges={state.cloakCharges}
+        onCargoClick={() => setShowInventory(true)}
+        encounterActive={!!encounter}
+      />
+
+      {/* Modals */}
+      <AnimatePresence>
+        {showInventory && (
+          <InventoryModal
+            state={state}
+            setState={setState}
+            onClose={() => setShowInventory(false)}
+          />
+        )}
+
+        {showStorage && (
+          <StorageModal
+            state={state}
+            setState={setState}
+            onClose={() => setShowStorage(false)}
+          />
+        )}
+
+        {discovery && (
+          <DiscoveryModal
+            state={state}
+            setState={setState}
+            discovery={discovery}
+            addLog={addLog}
+            onClose={() => setDiscovery(null)}
+            onShowInventory={() => setShowInventory(true)}
+          />
+        )}
+
+        {wizardEncounter && (
+          <WizardModal
+            state={state}
+            setState={setState}
+            addLog={addLog}
+            onClose={() => setWizardEncounter(false)}
+          />
+        )}
+
+        {encounter && (
+          <EncounterModal
+            state={state}
+            encounter={encounter}
+            totalPower={totalPower}
+            totalDefense={totalDefense}
+            onAction={handleEncounterAction}
+            onClose={() => setEncounter(null)}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
