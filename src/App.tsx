@@ -15,10 +15,11 @@ import {
   Settings, 
   Trash2, 
   ChevronRight,
-  AlertTriangle,
-  Crosshair,
   Skull,
-  Move
+  Move,
+  RefreshCcw,
+  AlertTriangle,
+  Crosshair
 } from 'lucide-react';
 import { GameState, Sector, SectorType, Item } from './types';
 import { SECTOR_DISTRIBUTION, HUB_NAMES, SPACE_JUNK, NPC_NAMES_PREFIX, NPC_NAMES_SUFFIX } from './constants';
@@ -29,17 +30,15 @@ const INITIAL_STATE: GameState = {
   shipName: '',
   credits: 50,
   nocturnium: 0,
-  cargoCapacity: 10,
+  cargoCapacity: 8,
   power: 1,
   defense: 1,
   inventory: [],
   globalCoords: { x: 40, y: 24 },
   lastJumpTime: Date.now(),
-  miningTimer: 5,
-  minersCount: 1,
   upgrades: {
     cargo: 0,
-    shields: 0,
+    shields: 1,
     weapons: 1,
   },
   damagedUpgrades: {
@@ -95,10 +94,12 @@ export default function App() {
   const [isJumping, setIsJumping] = useState(false);
   const [jumpProgress, setJumpProgress] = useState(0);
   const [showInventory, setShowInventory] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [discovery, setDiscovery] = useState<{
     title: string;
     message: string;
     item?: Item;
+    nocturniumYield?: number;
   } | null>(null);
   const [encounter, setEncounter] = useState<{
     name: string;
@@ -106,6 +107,8 @@ export default function App() {
     defense: number;
     credits: number;
     type: 'pirate' | 'ruin';
+    isAmbush: boolean;
+    status: 'waiting' | 'ambushed' | 'counter-attack' | 'finished';
     result?: string;
     clashResult?: string;
     hasAttacked?: boolean;
@@ -115,7 +118,7 @@ export default function App() {
   // Keyboard listeners for sub-sector movement
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!state || isJumping || encounter || showInventory) return;
+      if (!state || isJumping || encounter || showInventory || showResetConfirm || discovery) return;
 
       let dx = 0;
       let dy = 0;
@@ -143,18 +146,34 @@ export default function App() {
 
       if (newX === currentGlobal.x && newY === currentGlobal.y) return prev;
 
+      const nextMoveCount = prev.moveCount + 1;
       const sectorIndex = Math.floor(newY / 16) * 4 + Math.floor(newX / 16);
       const sector = MAP[sectorIndex];
       
-      // Check for encounter chance on move - NO encounters in Trade Hubs
-      let encounterChance = sector.type === 'Trade Hub' ? 0 : 0.05;
+      // Check for encounter chance on move - NO encounters in Trade Hubs or Asteroid Belts
+      let encounterChance = (sector.type === 'Trade Hub' || sector.type === 'Asteroid Belt') ? 0 : 0.05;
 
       if (encounterChance > 0 && Math.random() < encounterChance) {
         setTimeout(() => triggerEncounter(sector.type === 'Ruin Sector'), 0);
       }
 
+      // Mining Encounter (Asteroid Belt only)
+      if (sector.type === 'Asteroid Belt' && Math.random() < 0.1) {
+        const yield_ = Math.floor(Math.random() * 3) + 1;
+        
+        setTimeout(() => setDiscovery({
+          title: "ASTEROID ENCOUNTER",
+          message: `You navigated into a dense cluster and found ${yield_} units of Nocturnium Ore!`,
+          nocturniumYield: yield_
+        }), 0);
+        return {
+          ...prev,
+          globalCoords: { x: newX, y: newY },
+          moveCount: nextMoveCount
+        };
+      }
+
       // Random item discovery (Rotational Rarity)
-      const nextMoveCount = prev.moveCount + 1;
       const itemIndex = nextMoveCount % SPACE_JUNK.length;
       const candidateItem = SPACE_JUNK[itemIndex];
       
@@ -172,7 +191,7 @@ export default function App() {
       
       const foundItem = (Math.random() * baseOdds < successThreshold) ? candidateItem : null;
 
-      if (foundItem && (prev.inventory.length + prev.nocturnium < prev.cargoCapacity)) {
+      if (foundItem) {
         setTimeout(() => setDiscovery({
           title: "DISCOVERY",
           message: `You found ${foundItem.name} drifting in the sector!`,
@@ -181,7 +200,6 @@ export default function App() {
         return {
           ...prev,
           globalCoords: { x: newX, y: newY },
-          inventory: [...prev.inventory, foundItem],
           moveCount: nextMoveCount
         };
       }
@@ -219,6 +237,13 @@ export default function App() {
 
   const addLog = (msg: string) => {
     setLog(prev => [msg, ...prev].slice(0, 10));
+  };
+
+  const resetGame = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setState(INITIAL_STATE);
+    setShowResetConfirm(false);
+    setLog(["System Reset. Welcome to Sector 16."]);
   };
 
   const currentSector = useMemo(() => {
@@ -273,28 +298,6 @@ export default function App() {
     setState(prev => {
       if (!prev) return prev;
       
-      let nextMiningTimer = prev.miningTimer - 1;
-      let nextNocturnium = prev.nocturnium;
-      let nextCredits = prev.credits;
-
-      // Mining yield
-      if (nextMiningTimer <= 0) {
-        const potentialYield = prev.minersCount * 5;
-        const currentUsed = prev.inventory.length + prev.nocturnium;
-        const actualYield = Math.min(potentialYield, prev.cargoCapacity - currentUsed);
-        
-        if (actualYield > 0) {
-          nextNocturnium += actualYield;
-          setTimeout(() => setDiscovery({
-            title: "MINING REPORT",
-            message: `Your automated miners have returned with ${actualYield} units of Nocturnium Ore.${actualYield < potentialYield ? " (Cargo Full)" : ""}`
-          }), 0);
-        } else if (potentialYield > 0) {
-          addLog("Mining yield lost: Cargo full.");
-        }
-        nextMiningTimer = 5;
-      }
-
       // Nebula Damage
       if (newSector.type === 'Nebula') {
         if (Math.random() < 0.2) {
@@ -307,8 +310,6 @@ export default function App() {
             return {
               ...prev,
               globalCoords: { x: sectorCol * 16 + 8, y: sectorRow * 16 + 8 },
-              miningTimer: nextMiningTimer,
-              nocturnium: nextNocturnium,
               damagedUpgrades: { ...prev.damagedUpgrades, [target]: true }
             };
           }
@@ -319,9 +320,7 @@ export default function App() {
       const sectorCol = index % 4;
       return {
         ...prev,
-        globalCoords: { x: sectorCol * 16 + 8, y: sectorRow * 16 + 8 },
-        miningTimer: nextMiningTimer,
-        nocturnium: nextNocturnium
+        globalCoords: { x: sectorCol * 16 + 8, y: sectorRow * 16 + 8 }
       };
     });
 
@@ -333,6 +332,8 @@ export default function App() {
   };
 
   const triggerEncounter = (isRuin: boolean) => {
+    if (state && state.defense <= 0) return; // Cannot be attacked if defense is 0
+
     const name = `${NPC_NAMES_PREFIX[Math.floor(Math.random() * NPC_NAMES_PREFIX.length)]} ${NPC_NAMES_SUFFIX[Math.floor(Math.random() * NPC_NAMES_SUFFIX.length)]}`;
     
     // NPC Power/Defense scales reasonably to player stats
@@ -348,36 +349,30 @@ export default function App() {
     const variance = (Math.random() * 1.0) - 0.5; // -0.5 to +0.5
     const npcCredits = Math.floor(pCredits * (1 + variance));
 
+    const isAmbush = Math.random() < 0.4;
+
     setEncounter({
       name,
       power: npcPower,
       defense: npcDefense,
       credits: npcCredits,
       type: isRuin ? 'ruin' : 'pirate',
+      isAmbush,
+      status: isAmbush ? 'ambushed' : 'waiting',
       hasAttacked: false
     });
   };
 
-  const handleAction = (action: 'mine' | 'trade' | 'repair') => {
+  const handleAction = (action: 'trade' | 'repair') => {
     if (!state || !currentSector) return;
-
-    if (action === 'mine' && currentSector.type === 'Asteroid Belt') {
-      const yield_ = Math.floor(Math.random() * 3) + 1;
-      if (state.nocturnium + state.inventory.length + yield_ > state.cargoCapacity) {
-        addLog("Cargo full! Cannot mine more.");
-        return;
-      }
-      setState(prev => prev ? ({ ...prev, nocturnium: prev.nocturnium + yield_ }) : null);
-      addLog(`Mined ${yield_} Nocturnium.`);
-    }
   };
 
   const buyUpgrade = (type: 'cargo' | 'shields' | 'weapons') => {
     if (!state) return;
-    const basePrice = type === 'weapons' ? 100 : 50;
+    const basePrice = 16;
     const count = state.upgrades[type];
     
-    const cost = Math.floor(basePrice * Math.pow(1.6, count));
+    const cost = Math.floor(basePrice * Math.pow(2, count));
 
     if (state.credits >= cost) {
       setState(prev => {
@@ -387,7 +382,7 @@ export default function App() {
         let nextDefense = prev.defense;
         let nextCargo = prev.cargoCapacity;
 
-        if (type === 'cargo') nextCargo += 5;
+        if (type === 'cargo') nextCargo += 8;
         if (type === 'shields') nextDefense += 1; // Simple +1
         if (type === 'weapons') nextPower += 1; // Simple +1
 
@@ -408,9 +403,9 @@ export default function App() {
 
   const repairUpgrade = (type: 'cargo' | 'shields' | 'weapons') => {
     if (!state || !state.damagedUpgrades[type]) return;
-    const basePrice = type === 'weapons' ? 100 : 50;
+    const basePrice = 16;
     const count = state.upgrades[type];
-    const currentCost = Math.floor(basePrice * Math.pow(1.6, count));
+    const currentCost = Math.floor(basePrice * Math.pow(2, count - 1));
     const repairCost = Math.floor(currentCost * 0.2);
 
     if (state.credits >= repairCost) {
@@ -469,12 +464,45 @@ export default function App() {
     });
   };
 
-  const handleEncounterAction = (action: 'attack' | 'defend' | 'avoid') => {
+  const handleEncounterAction = (action: 'attack' | 'defend' | 'avoid' | 'fly') => {
     if (!state || !encounter) return;
 
     const rollDice = (count: number) => {
       return Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1).sort((a, b) => b - a);
     };
+
+    const triggerDeath = (prev: GameState) => {
+      const tradeHub = MAP.find(s => s.type === 'Trade Hub');
+      const hubCoords = tradeHub ? { x: tradeHub.coords.c * 16 + 8, y: tradeHub.coords.r * 16 + 8 } : { x: 40, y: 24 };
+      
+      // Keep Rare Space Junk (value >= 256)
+      const nextInventory = prev.inventory.filter(item => item.value >= 256);
+      const nextCredits = Math.floor(prev.credits * 0.1);
+
+      setTimeout(() => {
+        const msg = `LOOTED! Your ship was disabled. You were towed to ${tradeHub?.name || 'Trade Hub'}. Stats reset. 90% credits lost.`;
+        addLog(msg);
+        setEncounter(e => e ? { ...e, result: msg, status: 'finished' } : null);
+      }, 0);
+
+      return {
+        ...prev,
+        power: 1,
+        defense: 1,
+        credits: nextCredits,
+        inventory: nextInventory,
+        globalCoords: hubCoords,
+        upgrades: { cargo: 0, shields: 1, weapons: 1 },
+        damagedUpgrades: { cargo: false, shields: false, weapons: false },
+        cargoCapacity: 8
+      };
+    };
+
+    if (action === 'fly') {
+      addLog("You successfully flew away.");
+      setEncounter(null);
+      return;
+    }
 
     if (action === 'avoid') {
       const chance = encounter.type === 'ruin' ? 0.1 : 0.8;
@@ -482,8 +510,19 @@ export default function App() {
         addLog("Successfully avoided the encounter.");
         setEncounter(null);
       } else {
-        addLog("Failed to avoid! Forced to defend.");
-        handleEncounterAction('defend');
+        if (encounter.isAmbush) {
+          addLog("Avoid failed! You took damage while fleeing.");
+          setState(prev => {
+            if (!prev) return prev;
+            const nextDefense = prev.defense - 1;
+            if (nextDefense <= 0) return triggerDeath(prev);
+            return { ...prev, defense: nextDefense };
+          });
+          setEncounter(prev => prev ? { ...prev, result: "Avoid failed. You took 1 damage and the enemy disengaged.", status: 'finished' } : null);
+        } else {
+          addLog("Failed to avoid! Forced to defend.");
+          handleEncounterAction('defend');
+        }
       }
       return;
     }
@@ -493,12 +532,11 @@ export default function App() {
       if (encounter.hasAttacked && Math.random() < 0.1) {
         const msg = `${encounter.name} warped out! The encounter ended instantly.`;
         addLog(msg);
-        setEncounter(prev => prev ? { ...prev, result: msg } : null);
+        setEncounter(prev => prev ? { ...prev, result: msg, status: 'finished' } : null);
         return;
       }
 
       // Clash: Power dice vs Defense dice
-      // Stat level (including XP bonus) determines dice count
       const playerDiceCount = Math.min(Math.floor(totalPower), 3);
       const npcDiceCount = Math.min(Math.floor(encounter.defense), 2);
       
@@ -521,7 +559,7 @@ export default function App() {
         if (!prev) return prev;
         return {
           ...prev,
-          power: Math.max(1, prev.power + pWinsLocal - nWinsLocal)
+          power: Math.max(0, prev.power + pWinsLocal - nWinsLocal)
         };
       });
 
@@ -529,8 +567,12 @@ export default function App() {
       setEncounter(prev => {
         if (!prev) return prev;
         const nextDefense = Math.max(0, prev.defense - pWinsLocal);
-        const clashMsg = `Clash: You rolled [${pDice.join(',')}] vs Enemy [${nDice.join(',')}]. You won ${pWinsLocal} comparisons.`;
+        let clashMsg = `Clash: You rolled [${pDice.join(',')}] vs Enemy [${nDice.join(',')}]. You won ${pWinsLocal} clashes.`;
         
+        if (pWinsLocal === 0) {
+          clashMsg = `The enemy ship successfully defended itself and flew away. You lost 1 Power in the exchange.`;
+        }
+
         if (nextDefense <= 0) {
           // Win and loot ship
           const loot = prev.credits;
@@ -561,7 +603,13 @@ export default function App() {
 
           const msg = `VICTORY! You destroyed ${prev.name} and looted ${loot} credits.${foundItem ? ` Salvaged: ${foundItem.name}` : ''}`;
           addLog(msg);
-          return { ...prev, defense: 0, result: msg, clashResult: clashMsg };
+          return { ...prev, defense: 0, result: msg, clashResult: clashMsg, status: 'finished' };
+        }
+
+        if (pWinsLocal === 0) {
+          const msg = `FAILED ATTACK! The enemy ship successfully defended itself and flew away. You lost 1 Power in the exchange.`;
+          addLog(msg);
+          return { ...prev, result: msg, clashResult: clashMsg, status: 'finished' };
         }
 
         return { ...prev, defense: nextDefense, hasAttacked: true, clashResult: clashMsg };
@@ -588,56 +636,38 @@ export default function App() {
         else pWinsLocal++; // Ties go to defender
       }
 
-      // Update NPC stats: NPC loses 1 Power point per player win
-      setEncounter(prev => {
-        if (!prev) return prev;
-        const nextPower = Math.max(0, prev.power - pWinsLocal);
-        const clashMsg = `Defense: Enemy rolled [${nDice.join(',')}] vs You [${pDice.join(',')}]. You lost ${nWinsLocal} Defense.`;
-        if (nextPower <= 0) {
-          const msg = `SURVIVAL! You drove off ${prev.name}. No rewards given.`;
-          addLog(msg);
-          return { ...prev, power: 0, result: msg, clashResult: clashMsg };
+      // Logic for results
+      if (pWinsLocal > nWinsLocal) {
+        // Player Wins
+        addLog("Defend successful! You have the advantage.");
+        setEncounter(prev => prev ? { ...prev, status: 'counter-attack', clashResult: `Defense: You won the clash! [${pDice.join(',')}] vs [${nDice.join(',')}]` } : null);
+      } else if (pWinsLocal === nWinsLocal) {
+        // Split Decision
+        if (Math.random() < 0.5) {
+          addLog("Split decision! The enemy ship flies away.");
+          setEncounter(prev => prev ? { ...prev, result: "Split decision. The enemy ship disengaged.", status: 'finished' } : null);
+        } else {
+          addLog("Split decision! The enemy ship attacks again!");
+          setEncounter(prev => prev ? { ...prev, clashResult: "Split decision. The enemy ship is coming around for another pass!" } : null);
         }
-        return { ...prev, power: nextPower, clashResult: clashMsg };
-      });
+      } else {
+        // Player Loses
+        addLog("Defend failed! You took damage.");
+        setState(prev => {
+          if (!prev) return prev;
+          const nextDefense = prev.defense - 1;
+          if (nextDefense <= 0) return triggerDeath(prev);
+          return { ...prev, defense: nextDefense };
+        });
 
-      // Update Player stats: Player loses 1 Defense point per NPC win
-      setState(prev => {
-        if (!prev) return prev;
-        const nextDefense = prev.defense - nWinsLocal;
-        
-        if (nextDefense <= 0) {
-          // Death State: Reset stats, teleport to Trade Hub, lose credits
-          const tradeHub = MAP.find(s => s.type === 'Trade Hub');
-          const hubCoords = tradeHub ? { x: tradeHub.coords.c * 16 + 8, y: tradeHub.coords.r * 16 + 8 } : { x: 40, y: 24 };
-          
-          // Keep Rare Space Junk (value >= 256)
-          const nextInventory = prev.inventory.filter(item => item.value >= 256);
-          const nextCredits = Math.floor(prev.credits * 0.1);
-
-          setTimeout(() => {
-            const msg = `LOOTED! Your ship was disabled. You were towed to ${tradeHub?.name || 'Trade Hub'}. Stats reset. 90% credits lost.`;
-            addLog(msg);
-            setEncounter(e => e ? { ...e, result: msg } : null);
-          }, 0);
-
-          return {
-            ...prev,
-            power: 1,
-            defense: 1,
-            credits: nextCredits,
-            inventory: nextInventory,
-            globalCoords: hubCoords,
-            upgrades: { cargo: 0, shields: 0, weapons: 1 },
-            damagedUpgrades: { cargo: false, shields: false, weapons: false },
-            cargoCapacity: 10
-          };
+        if (Math.random() < 0.6) {
+          addLog("The enemy ship attacks again!");
+          setEncounter(prev => prev ? { ...prev, clashResult: "Defend failed. You lost 1 Defense. The enemy ship attacks again!" } : null);
+        } else {
+          addLog("The enemy ship disengages.");
+          setEncounter(prev => prev ? { ...prev, result: "Defend failed. You lost 1 Defense. The enemy ship disengaged.", status: 'finished' } : null);
         }
-
-        return { ...prev, defense: nextDefense };
-      });
-
-      addLog(`Defense: Enemy rolled [${nDice.join(',')}] vs You [${pDice.join(',')}]. You lost ${nWinsLocal} Defense.`);
+      }
       return;
     }
   };
@@ -675,6 +705,14 @@ export default function App() {
           <span className="text-lg font-bold tracking-tighter">{state.shipName}</span>
         </div>
         <div className="flex gap-6">
+          <button 
+            onClick={() => setShowResetConfirm(true)}
+            className="flex items-center gap-2 text-red-500/50 hover:text-red-500 transition-colors text-[10px] tracking-widest"
+            title="RESET GAME"
+          >
+            <RefreshCcw size={12} />
+            <span>RESET</span>
+          </button>
           <div className="flex items-center gap-2">
             <TrendingUp size={16} />
             <span>{state.credits} CR</span>
@@ -714,6 +752,40 @@ export default function App() {
                     initial={{ width: 0 }}
                     animate={{ width: `${jumpProgress * 100}%` }}
                   />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Reset Confirmation Overlay */}
+        <AnimatePresence>
+          {showResetConfirm && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-[200] bg-black/90 flex items-center justify-center p-4"
+            >
+              <div className="pixel-border bg-black p-6 max-w-xs w-full text-center">
+                <AlertTriangle className="mx-auto mb-4 text-red-500" size={32} />
+                <h2 className="text-sm font-bold tracking-widest mb-2">WIPE ALL DATA?</h2>
+                <p className="text-[10px] opacity-70 mb-6 leading-relaxed">
+                  THIS WILL PERMANENTLY DELETE YOUR SAVE FILE AND RESET ALL PROGRESS.
+                </p>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => setShowResetConfirm(false)}
+                    className="flex-1 pixel-button text-[10px] py-2"
+                  >
+                    CANCEL
+                  </button>
+                  <button 
+                    onClick={resetGame}
+                    className="flex-1 pixel-button text-[10px] py-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                  >
+                    RESET
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -899,11 +971,11 @@ export default function App() {
                       <div className="grid grid-cols-1 gap-2 mt-4">
                         <p className="text-xs border-b border-white pb-1">UPGRADES</p>
                         {(['cargo', 'shields', 'weapons'] as const).map(type => {
-                          const basePrice = type === 'weapons' ? 100 : 50;
+                          const basePrice = 16;
                           const count = state.upgrades[type];
-                          const cost = Math.floor(basePrice * Math.pow(1.6, count));
+                          const cost = Math.floor(basePrice * Math.pow(2, count));
                           const isDamaged = state.damagedUpgrades[type];
-                          const repairCost = Math.floor(cost * 0.2);
+                          const repairCost = Math.floor(Math.floor(basePrice * Math.pow(2, count - 1)) * 0.2);
 
                           return (
                             <div key={type} className="flex flex-col gap-2 p-2 border border-white/30">
@@ -964,10 +1036,16 @@ export default function App() {
               )}
 
               {currentSector?.type === 'Asteroid Belt' && (
-                <button onClick={() => handleAction('mine')} className="pixel-button w-full flex items-center justify-between">
-                  <span>EXTRACT NOCTURNIUM</span>
-                  <Zap size={18} />
-                </button>
+                <div className="p-6 border border-yellow-500/20 bg-yellow-500/5 flex flex-col items-center gap-4 text-center">
+                  <Zap className="text-yellow-400 animate-pulse" size={48} />
+                  <div>
+                    <p className="text-sm text-yellow-400 font-bold uppercase tracking-widest">Asteroid Belt Detected</p>
+                    <p className="text-xs opacity-60 mt-2 leading-relaxed">
+                      Move through the sector to locate rich mineral clusters.<br/>
+                      Nocturnium extraction is automated upon discovery.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -985,7 +1063,11 @@ export default function App() {
 
       {/* Bottom Nav */}
       <div className="flex border-t-2 border-white bg-black">
-        <button onClick={() => setShowInventory(true)} className="flex-1 p-4 hover:bg-white hover:text-black flex flex-col items-center gap-1">
+        <button 
+          onClick={() => setShowInventory(true)} 
+          disabled={!!encounter}
+          className="flex-1 p-4 hover:bg-white hover:text-black flex flex-col items-center gap-1 disabled:opacity-30 disabled:hover:bg-black disabled:hover:text-white"
+        >
           <Package size={20} />
           <span className="text-[10px]">CARGO</span>
         </button>
@@ -1016,7 +1098,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-8 bg-black/90 backdrop-blur-sm"
+            className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-black/90 backdrop-blur-sm"
           >
             <div className="w-full max-w-2xl pixel-border bg-black p-6 flex flex-col max-h-[80vh]">
               <div className="flex justify-between items-center mb-6">
@@ -1025,9 +1107,19 @@ export default function App() {
               </div>
               
               <div className="flex-1 overflow-y-auto space-y-4">
-                <div className="flex justify-between border-b border-white pb-2">
-                  <span>NOCTURNIUM ORE</span>
-                  <span>{state.nocturnium} UNITS</span>
+                <div className="flex justify-between items-center border-b border-white pb-2">
+                  <div className="flex flex-col">
+                    <span>NOCTURNIUM ORE</span>
+                    <span className="text-[10px] opacity-50">{state.nocturnium} UNITS</span>
+                  </div>
+                  {state.nocturnium > 0 && (
+                    <button 
+                      onClick={() => setState(prev => prev ? ({ ...prev, nocturnium: prev.nocturnium - 1 }) : null)}
+                      className="text-red-500 hover:bg-red-500 hover:text-white p-1 text-[10px] border border-red-500/30"
+                    >
+                      DROP 1
+                    </button>
+                  )}
                 </div>
                 
                 <div className="grid grid-cols-1 gap-2">
@@ -1094,13 +1186,58 @@ export default function App() {
                   <span className="text-[10px] opacity-50">VALUE: {discovery.item.value} CR</span>
                 </div>
               )}
+
+              {discovery.nocturniumYield && (
+                <div className="p-4 border border-white/20 bg-white/5 flex flex-col items-center gap-2">
+                  <span className="text-lg font-bold">{discovery.nocturniumYield} NOCTURNIUM ORE</span>
+                </div>
+              )}
+
+              {state && (state.inventory.length + state.nocturnium + (discovery.item ? 1 : (discovery.nocturniumYield || 0)) > state.cargoCapacity) && (
+                <div className="p-3 border border-red-500/50 bg-red-500/10 space-y-1">
+                  <p className="text-[10px] text-red-400 font-bold uppercase tracking-widest">Cargo Hold Full</p>
+                  <p className="text-[9px] text-red-300/80 leading-tight">
+                    You'll need to drop something from your cargo hold to collect this discovery.
+                  </p>
+                </div>
+              )}
               
-              <button 
-                onClick={() => setDiscovery(null)} 
-                className="pixel-button w-full py-2"
-              >
-                ACKNOWLEDGE
-              </button>
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={() => {
+                    if (!state) return;
+                    const yield_ = discovery.nocturniumYield || 0;
+                    const item = discovery.item;
+                    const currentUsed = state.inventory.length + state.nocturnium;
+                    const spaceNeeded = item ? 1 : yield_;
+
+                    if (currentUsed + spaceNeeded > state.cargoCapacity) {
+                      addLog("Cargo hold full. Must drop items to collect.");
+                      setShowInventory(true);
+                      return;
+                    }
+
+                    setState(prev => {
+                      if (!prev) return prev;
+                      return {
+                        ...prev,
+                        nocturnium: prev.nocturnium + yield_,
+                        inventory: item ? [...prev.inventory, item] : prev.inventory
+                      };
+                    });
+                    setDiscovery(null);
+                  }} 
+                  className="pixel-button w-full py-2 disabled:opacity-30"
+                >
+                  {state && (state.inventory.length + state.nocturnium + (discovery.item ? 1 : (discovery.nocturniumYield || 0)) > state.cargoCapacity) ? 'MANAGE CARGO' : 'COLLECT'}
+                </button>
+                <button 
+                  onClick={() => setDiscovery(null)} 
+                  className="text-[10px] opacity-50 hover:opacity-100 uppercase tracking-widest"
+                >
+                  Abandon
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
@@ -1112,32 +1249,28 @@ export default function App() {
             className="fixed inset-0 z-[100] flex items-center justify-center p-8 bg-black/95"
           >
             <div className="w-full max-w-md pixel-border bg-black p-8 text-center space-y-8">
-              {!encounter.result ? (
+              {encounter.status !== 'finished' ? (
                 <>
                   <div className="space-y-2">
-                    <h3 className="text-red-500 text-sm tracking-widest animate-pulse">ENCOUNTER DETECTED</h3>
+                    <h3 className="text-red-500 text-sm tracking-widest animate-pulse">
+                      {encounter.isAmbush ? 'AMBUSH DETECTED' : 'ENCOUNTER DETECTED'}
+                    </h3>
                     <h2 className="text-2xl font-bold uppercase">{encounter.name}</h2>
-                    <p className="text-xs opacity-50">{encounter.type === 'ruin' ? 'ANCIENT GUARDIAN' : 'PIRATE VESSEL'}</p>
+                    <p className="text-xs opacity-50">
+                      {encounter.isAmbush ? "YOU'VE BEEN ATTACKED!" : (encounter.type === 'ruin' ? 'ANCIENT GUARDIAN' : 'PIRATE VESSEL')}
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 py-4 border-y border-white/20">
                     <div className="space-y-2 border-r border-white/10">
                       <p className="text-[8px] opacity-50 uppercase">Your Stats</p>
                       <div className="flex justify-between px-2">
-                        <span className="text-[10px]">PWR (DICE)</span>
-                        <span className="text-sm font-bold">{Math.min(Math.floor(totalPower), 3)}</span>
+                        <span className="text-[10px]">PWR</span>
+                        <span className="text-sm font-bold">{Math.floor(totalPower)}</span>
                       </div>
                       <div className="flex justify-between px-2">
-                        <span className="text-[10px]">DEF (DICE)</span>
-                        <span className="text-sm font-bold">{Math.min(Math.floor(totalDefense), 2)}</span>
-                      </div>
-                      <div className="flex justify-between px-2 pt-1 border-t border-white/5">
-                        <span className="text-[8px] opacity-50">TOTAL PWR</span>
-                        <span className="text-[10px] font-bold">{Math.floor(totalPower)}</span>
-                      </div>
-                      <div className="flex justify-between px-2">
-                        <span className="text-[8px] opacity-50">TOTAL DEF</span>
-                        <span className="text-[10px] font-bold">{Math.floor(totalDefense)}</span>
+                        <span className="text-[10px]">DEF</span>
+                        <span className="text-sm font-bold">{Math.floor(totalDefense)}</span>
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -1150,10 +1283,6 @@ export default function App() {
                         <span className="text-[10px]">DEF</span>
                         <span className="text-sm font-bold text-red-500">{Math.floor(encounter.defense)}</span>
                       </div>
-                      <div className="flex justify-between px-2 border-t border-white/5 pt-1">
-                        <span className="text-[8px] opacity-50">EST. BOUNTY</span>
-                        <span className="text-[10px] font-bold text-emerald-400">{encounter.credits} CR</span>
-                      </div>
                     </div>
                   </div>
 
@@ -1164,18 +1293,55 @@ export default function App() {
                   )}
 
                   <div className="grid grid-cols-1 gap-4">
-                    <button onClick={() => handleEncounterAction('attack')} className="pixel-button flex items-center justify-center gap-2 group">
-                      <Crosshair size={18} className="group-hover:animate-spin" />
-                      <span>EXTORT (ATTACK)</span>
-                    </button>
-                    <button onClick={() => handleEncounterAction('defend')} className="pixel-button flex items-center justify-center gap-2">
-                      <Shield size={18} />
-                      <span>DEFEND</span>
-                    </button>
-                    <button onClick={() => handleEncounterAction('avoid')} className="pixel-button flex items-center justify-center gap-2">
-                      <Move size={18} />
-                      <span>AVOID ({encounter.type === 'ruin' ? '10%' : '80%'} CHANCE)</span>
-                    </button>
+                    {encounter.status === 'waiting' && (
+                      <>
+                        <button 
+                          onClick={() => handleEncounterAction('attack')} 
+                          disabled={totalPower < 1}
+                          className="pixel-button flex items-center justify-center gap-2 group disabled:opacity-30"
+                        >
+                          <Crosshair size={18} className={totalPower >= 1 ? "group-hover:animate-spin" : ""} />
+                          <span>EXTORT (ATTACK)</span>
+                        </button>
+                        {totalPower < 1 && (
+                          <p className="text-[10px] text-red-500 animate-pulse">WEAPONS OFFLINE: ACQUIRE UPGRADES TO ATTACK</p>
+                        )}
+                        <button onClick={() => handleEncounterAction('avoid')} className="pixel-button flex items-center justify-center gap-2">
+                          <Move size={18} />
+                          <span>AVOID ({encounter.type === 'ruin' ? '10%' : '80%'} CHANCE)</span>
+                        </button>
+                      </>
+                    )}
+
+                    {encounter.status === 'ambushed' && (
+                      <>
+                        <button onClick={() => handleEncounterAction('defend')} className="pixel-button flex items-center justify-center gap-2">
+                          <Shield size={18} />
+                          <span>DEFEND</span>
+                        </button>
+                        <button onClick={() => handleEncounterAction('avoid')} className="pixel-button flex items-center justify-center gap-2">
+                          <Move size={18} />
+                          <span>AVOID ({encounter.type === 'ruin' ? '10%' : '80%'} CHANCE)</span>
+                        </button>
+                      </>
+                    )}
+
+                    {encounter.status === 'counter-attack' && (
+                      <>
+                        <button 
+                          onClick={() => handleEncounterAction('attack')} 
+                          disabled={totalPower < 1}
+                          className="pixel-button flex items-center justify-center gap-2 group disabled:opacity-30"
+                        >
+                          <Crosshair size={18} className={totalPower >= 1 ? "group-hover:animate-spin" : ""} />
+                          <span>ATTACK BACK</span>
+                        </button>
+                        <button onClick={() => handleEncounterAction('fly')} className="pixel-button flex items-center justify-center gap-2">
+                          <Move size={18} />
+                          <span>FLY AWAY (GUARANTEED)</span>
+                        </button>
+                      </>
+                    )}
                   </div>
                 </>
               ) : (
@@ -1192,4 +1358,3 @@ export default function App() {
     </div>
   );
 }
-

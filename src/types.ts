@@ -21,8 +21,6 @@ export interface GameState {
   inventory: Item[];
   globalCoords: { x: number; y: number }; // 0-63 global grid (4x4 sectors of 16x16)
   lastJumpTime: number;
-  miningTimer: number; // Jumps until next yield
-  minersCount: number; // Number of deployed miners
   upgrades: {
     cargo: number;
     shields: number;

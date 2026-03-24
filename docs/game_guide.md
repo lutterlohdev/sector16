@@ -14,14 +14,10 @@ The entire game state is persisted in `localStorage` under the key `sector16_sav
 - `cargoCapacity`: Number. Starting value: 10.
 - `power`: Number. Base attack stat. Starting value: 1.
 - `defense`: Number. Base defense stat. Starting value: 1.
-- `luck`: Number. Base scavenging stat. Starting value: 0.
-- `xp`: Number. Total experience points.
 - `inventory`: Array of `Item` objects.
-- `globalCoords`: Object `{ x: number, y: number }`. Range: 0-63. Starting value: (8, 8).
+- `globalCoords`: Object `{ x: number, y: number }`. Range: 0-63. Starting value: (40, 24).
 - `lastJumpTime`: Timestamp.
-- `miningTimer`: Number. Jumps remaining until automated yield. Starting value: 5.
-- `minersCount`: Number. Count of automated miners. Starting value: 1.
-- `upgrades`: Object `{ cargo: number, shields: number, weapons: number }`.
+- `upgrades`: Object `{ cargo: number, shields: number, weapons: number }`. Starting value: all 1.
 - `damagedUpgrades`: Object `{ cargo: boolean, shields: boolean, weapons: boolean }`.
 - `moveCount`: Number. Total steps taken (used for rotational rarity).
 
@@ -63,7 +59,6 @@ The map is a 4x4 grid of 16 sectors.
 ### 2.3 Movement
 - **Input**: Arrow keys.
 - **Boundary**: Clamped between 0 and 63.
-- **XP Gain**: 0.1 XP per step.
 - **Encounter Chance (on move)**:
     - The Void: 10%
     - Ruin Sector: 20%
@@ -72,8 +67,6 @@ The map is a 4x4 grid of 16 sectors.
 
 ### 2.4 Jump Drive
 - **Duration**: `Math.min(ManhattanDistance * 2000, 8000)` milliseconds.
-- **XP Gain**: 5 XP.
-- **Mining Trigger**: Decrements `miningTimer`. If 0, yields `minersCount * 5` Nocturnium (clamped by cargo).
 - **Encounter Chance (on jump)**:
     - Ruin Sector: 80%
     - The Void: 30%
@@ -84,8 +77,8 @@ The map is a 4x4 grid of 16 sectors.
 
 ### 3.1 Nocturnium Mining
 - **Location**: Asteroid Belt only.
+- **Trigger**: 10% chance per move within an Asteroid Belt.
 - **Yield**: `Math.floor(Math.random() * 3) + 1`.
-- **XP Gain**: 2 XP.
 - **Value**: 3 Credits per unit.
 
 ### 3.2 Rotational Scavenging (Space Junk)
@@ -93,8 +86,7 @@ Items are found based on a "Rotational Rarity" system.
 - **Candidate Selection**: `ItemIndex = moveCount % SPACE_JUNK.length`.
 - **Rarity Formula**:
     - `baseOdds = candidateItem.value / 2`.
-    - `luckBonus = (luck + xp * 0.0005) * 0.5`.
-    - `successThreshold = (1 + luckBonus) * sectorMultiplier`.
+    - `successThreshold = sectorMultiplier`.
 - **Sector Multipliers**:
     - Ship Graveyard: 4x
     - Ruin Sector: 2x
@@ -121,9 +113,10 @@ Items are found based on a "Rotational Rarity" system.
 4. **Ties**: Defender wins.
 
 #### Player Attacking:
-- Player wins comparison: NPC loses 1 Defense, Player gains 1 Power, Player gains 10 XP.
+- Player wins comparison: NPC loses 1 Defense, Player gains 1 Power.
 - NPC wins comparison: Player loses 1 Power.
-- **Victory**: If NPC Defense reaches 0. Player gains NPC Credits + 100 XP + 30% chance for salvage item (Combat Bonus: 2x multiplier).
+- **Victory**: If NPC Defense reaches 0. Player gains NPC Credits + 30% chance for salvage item (Combat Bonus: 2x multiplier).
+- **Failure**: If Player wins 0 comparisons, the enemy ship successfully defends itself and flies away. Player loses 1 Power. If Power reaches 0, the player cannot initiate attacks until they upgrade weapons.
 
 #### Player Defending:
 - NPC wins comparison: Player loses 1 Defense.
@@ -132,10 +125,10 @@ Items are found based on a "Rotational Rarity" system.
 - **Defeat**: If Player Defense reaches 0.
 
 ### 4.4 Defeat Consequences
-- Teleport to nearest Trade Hub (usually [8,8] of the hub sector).
+- Teleport to nearest Trade Hub (usually [40, 24] or the hub center).
 - Credits: 90% loss (`credits = Math.floor(credits * 0.1)`).
-- Stats: Power/Defense reset to 1. Luck resets to 0. XP halved.
-- Upgrades: All levels reset to 0 (Weapons resets to 1).
+- Stats: Power/Defense reset to 1.
+- Upgrades: All levels reset to 1.
 - Cargo: All Nocturnium lost. All items lost **unless** `value >= 256`.
 
 ---
@@ -147,11 +140,10 @@ Items are found based on a "Rotational Rarity" system.
 - **Shields**: +1 Defense per level.
 - **Weapons**: +1 Power per level.
 
-### 5.2 Cost Scaling (Level-Based Reset)
-- **Base Prices**: Cargo/Shields (50 CR), Weapons (100 CR).
-- **XP Level**: `Math.floor(xp / 500)`.
-- **Effective Count**: `Math.max(0, CurrentLevel - (XPLevel * 2))`.
-- **Cost**: `Math.floor(BasePrice * 1.6 ^ EffectiveCount)`.
+### 5.2 Cost Scaling
+- **Base Price**: 50 CR for all upgrades.
+- **Cost**: `Math.floor(BasePrice * 1.6 ^ (CurrentLevel - 1))`.
+- **Initial Upgrade (Level 1 to 2)**: 50 CR.
 
 ### 5.3 System Damage (Nebula)
 - **Trigger**: 20% chance per jump into a Nebula.
