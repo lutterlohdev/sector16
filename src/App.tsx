@@ -185,7 +185,7 @@ export default function App() {
       let sectorMultiplier = 1;
       if (sector.type === 'Ship Graveyard') sectorMultiplier = 4; // was 5
       if (sector.type === 'Ruin Sector') sectorMultiplier = 2; // was 2.5
-      if (sector.type === 'Trade Hub') sectorMultiplier = 0;
+      if (sector.type === 'Trade Hub' || sector.type === 'Asteroid Belt') sectorMultiplier = 0;
 
       const successThreshold = sectorMultiplier;
       
@@ -475,15 +475,9 @@ export default function App() {
       const tradeHub = MAP.find(s => s.type === 'Trade Hub');
       const hubCoords = tradeHub ? { x: tradeHub.coords.c * 16 + 8, y: tradeHub.coords.r * 16 + 8 } : { x: 40, y: 24 };
       
-      // Keep Rare Space Junk (value >= 256)
-      const nextInventory = prev.inventory.filter(item => item.value >= 256);
+      // Keep all items
+      const nextInventory = prev.inventory;
       const nextCredits = Math.floor(prev.credits * 0.1);
-
-      setTimeout(() => {
-        const msg = `LOOTED! Your ship was disabled. You were towed to ${tradeHub?.name || 'Trade Hub'}. Stats reset. 90% credits lost.`;
-        addLog(msg);
-        setEncounter(e => e ? { ...e, result: msg, status: 'finished' } : null);
-      }, 0);
 
       return {
         ...prev,
@@ -498,6 +492,13 @@ export default function App() {
       };
     };
 
+    const handleDeathSideEffects = () => {
+      const tradeHub = MAP.find(s => s.type === 'Trade Hub');
+      const msg = `LOOTED! Your ship was disabled. You were towed to ${tradeHub?.name || 'Trade Hub'}. Stats reset. 90% credits lost.`;
+      addLog(msg);
+      setEncounter(e => e ? { ...e, result: msg, status: 'finished' } : null);
+    };
+
     if (action === 'fly') {
       addLog("You successfully flew away.");
       setEncounter(null);
@@ -505,20 +506,28 @@ export default function App() {
     }
 
     if (action === 'avoid') {
-      const chance = encounter.type === 'ruin' ? 0.1 : 0.8;
+      const chance = !encounter.isAmbush ? 1.0 : (encounter.type === 'ruin' ? 0.1 : 0.8);
       if (Math.random() < chance) {
         addLog("Successfully avoided the encounter.");
         setEncounter(null);
       } else {
         if (encounter.isAmbush) {
           addLog("Avoid failed! You took damage while fleeing.");
-          setState(prev => {
-            if (!prev) return prev;
-            const nextDefense = prev.defense - 1;
-            if (nextDefense <= 0) return triggerDeath(prev);
-            return { ...prev, defense: nextDefense };
-          });
-          setEncounter(prev => prev ? { ...prev, result: "Avoid failed. You took 1 damage and the enemy disengaged.", status: 'finished' } : null);
+          if (state.defense - 1 <= 0) {
+            setState(prev => prev ? triggerDeath(prev) : null);
+            handleDeathSideEffects();
+          } else {
+            setState(prev => {
+              if (!prev) return prev;
+              const nextDefense = prev.defense - 1;
+              return { 
+                ...prev, 
+                defense: nextDefense,
+                upgrades: { ...prev.upgrades, shields: nextDefense }
+              };
+            });
+            setEncounter(prev => prev ? { ...prev, result: "Avoid failed. You took 1 damage and the enemy disengaged.", status: 'finished' } : null);
+          }
         } else {
           addLog("Failed to avoid! Forced to defend.");
           handleEncounterAction('defend');
@@ -557,9 +566,11 @@ export default function App() {
       let nWinsLocal = nWins;
       setState(prev => {
         if (!prev) return prev;
+        const nextPower = Math.max(0, prev.power + pWinsLocal - nWinsLocal);
         return {
           ...prev,
-          power: Math.max(0, prev.power + pWinsLocal - nWinsLocal)
+          power: nextPower,
+          upgrades: { ...prev.upgrades, weapons: nextPower }
         };
       });
 
@@ -653,19 +664,27 @@ export default function App() {
       } else {
         // Player Loses
         addLog("Defend failed! You took damage.");
-        setState(prev => {
-          if (!prev) return prev;
-          const nextDefense = prev.defense - 1;
-          if (nextDefense <= 0) return triggerDeath(prev);
-          return { ...prev, defense: nextDefense };
-        });
-
-        if (Math.random() < 0.6) {
-          addLog("The enemy ship attacks again!");
-          setEncounter(prev => prev ? { ...prev, clashResult: "Defend failed. You lost 1 Defense. The enemy ship attacks again!" } : null);
+        if (state.defense - 1 <= 0) {
+          setState(prev => prev ? triggerDeath(prev) : null);
+          handleDeathSideEffects();
         } else {
-          addLog("The enemy ship disengages.");
-          setEncounter(prev => prev ? { ...prev, result: "Defend failed. You lost 1 Defense. The enemy ship disengaged.", status: 'finished' } : null);
+          setState(prev => {
+            if (!prev) return prev;
+            const nextDefense = prev.defense - 1;
+            return { 
+              ...prev, 
+              defense: nextDefense,
+              upgrades: { ...prev.upgrades, shields: nextDefense }
+            };
+          });
+
+          if (Math.random() < 0.6) {
+            addLog("The enemy ship attacks again!");
+            setEncounter(prev => prev ? { ...prev, clashResult: "Defend failed. You lost 1 Defense. The enemy ship attacks again!" } : null);
+          } else {
+            addLog("The enemy ship disengages.");
+            setEncounter(prev => prev ? { ...prev, result: "Defend failed. You lost 1 Defense. The enemy ship disengaged.", status: 'finished' } : null);
+          }
         }
       }
       return;
@@ -730,6 +749,7 @@ export default function App() {
         <AnimatePresence>
           {isJumping && (
             <motion.div 
+              key="jump-overlay"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -762,6 +782,7 @@ export default function App() {
         <AnimatePresence>
           {showResetConfirm && (
             <motion.div 
+              key="reset-confirm-overlay"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -1095,6 +1116,7 @@ export default function App() {
       <AnimatePresence>
         {showInventory && (
           <motion.div 
+            key="inventory-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1171,6 +1193,7 @@ export default function App() {
 
         {discovery && (
           <motion.div 
+            key="discovery-modal"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
@@ -1244,6 +1267,7 @@ export default function App() {
 
         {encounter && (
           <motion.div 
+            key="encounter-modal"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             className="fixed inset-0 z-[100] flex items-center justify-center p-8 bg-black/95"
@@ -1308,7 +1332,7 @@ export default function App() {
                         )}
                         <button onClick={() => handleEncounterAction('avoid')} className="pixel-button flex items-center justify-center gap-2">
                           <Move size={18} />
-                          <span>AVOID ({encounter.type === 'ruin' ? '10%' : '80%'} CHANCE)</span>
+                          <span>AVOID ({!encounter.isAmbush ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%')} CHANCE)</span>
                         </button>
                       </>
                     )}
@@ -1321,7 +1345,7 @@ export default function App() {
                         </button>
                         <button onClick={() => handleEncounterAction('avoid')} className="pixel-button flex items-center justify-center gap-2">
                           <Move size={18} />
-                          <span>AVOID ({encounter.type === 'ruin' ? '10%' : '80%'} CHANCE)</span>
+                          <span>AVOID ({!encounter.isAmbush ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%')} CHANCE)</span>
                         </button>
                       </>
                     )}
