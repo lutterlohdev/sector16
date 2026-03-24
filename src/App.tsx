@@ -22,7 +22,7 @@ import {
   Crosshair
 } from 'lucide-react';
 import { GameState, Sector, SectorType, Item } from './types';
-import { SECTOR_DISTRIBUTION, HUB_NAMES, SPACE_JUNK, NPC_NAMES_PREFIX, NPC_NAMES_SUFFIX } from './constants';
+import { SECTOR_DISTRIBUTION, HUB_NAMES, SPACE_JUNK, NEBULA_SPECIAL_ITEMS, NPC_NAMES_PREFIX, NPC_NAMES_SUFFIX } from './constants';
 
 const STORAGE_KEY = 'sector16_save_v1';
 
@@ -108,10 +108,12 @@ export default function App() {
     credits: number;
     type: 'pirate' | 'ruin';
     isAmbush: boolean;
-    status: 'waiting' | 'ambushed' | 'counter-attack' | 'finished';
+    status: 'waiting' | 'ambushed' | 'counter-attack' | 'trading' | 'finished';
     result?: string;
     clashResult?: string;
     hasAttacked?: boolean;
+    offerAmount?: number;
+    offerItem?: Item;
   } | null>(null);
   const [log, setLog] = useState<string[]>(["System Initialized. Welcome to Sector 16."]);
 
@@ -135,7 +137,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state, isJumping, encounter, showInventory]);
+  }, [state, isJumping, encounter, showInventory, discovery, showResetConfirm]);
 
   const moveGlobal = (dx: number, dy: number) => {
     setState(prev => {
@@ -177,6 +179,12 @@ export default function App() {
       const itemIndex = nextMoveCount % SPACE_JUNK.length;
       const candidateItem = SPACE_JUNK[itemIndex];
       
+      // Nebula Special Items
+      let nebulaItem: Item | null = null;
+      if (sector.type === 'Nebula' && Math.random() < 0.1) {
+        nebulaItem = NEBULA_SPECIAL_ITEMS[Math.floor(Math.random() * NEBULA_SPECIAL_ITEMS.length)];
+      }
+
       // Increased rarity: baseOdds = value / 2 (was / 4)
       // Higher value = higher baseOdds = harder to find
       const baseOdds = candidateItem.value / 2;
@@ -189,7 +197,10 @@ export default function App() {
 
       const successThreshold = sectorMultiplier;
       
-      const foundItem = (Math.random() * baseOdds < successThreshold) ? candidateItem : null;
+      let foundItem = (Math.random() * baseOdds < successThreshold) ? candidateItem : null;
+      
+      // Override if nebula item found
+      if (nebulaItem) foundItem = nebulaItem;
 
       if (foundItem) {
         setTimeout(() => setDiscovery({
@@ -252,15 +263,26 @@ export default function App() {
     return MAP[sectorIndex];
   }, [state?.globalCoords]);
 
+  const attackModifier = useMemo(() => {
+    if (!state) return 0;
+    return state.inventory.reduce((acc, item) => acc + (item.modifier?.type === 'attack' ? item.modifier.value : 0), 0);
+  }, [state?.inventory]);
+
+  const defenseModifier = useMemo(() => {
+    if (!state) return 0;
+    return state.inventory.reduce((acc, item) => acc + (item.modifier?.type === 'defense' ? item.modifier.value : 0), 0);
+  }, [state?.inventory]);
+
   const totalPower = useMemo(() => {
     if (!state) return 0;
-    return state.power;
-  }, [state]);
+    if (state.power <= 0) return 0;
+    return state.power + attackModifier;
+  }, [state, attackModifier]);
 
   const totalDefense = useMemo(() => {
     if (!state) return 0;
-    return state.defense;
-  }, [state]);
+    return state.defense + defenseModifier;
+  }, [state, defenseModifier]);
 
 
 
@@ -336,23 +358,44 @@ export default function App() {
 
     const name = `${NPC_NAMES_PREFIX[Math.floor(Math.random() * NPC_NAMES_PREFIX.length)]} ${NPC_NAMES_SUFFIX[Math.floor(Math.random() * NPC_NAMES_SUFFIX.length)]}`;
     
-    // NPC Power/Defense scales reasonably to player stats
+    // NPC Power/Defense scaling
     const pPower = state?.power || 1;
     const pDefense = state?.defense || 1;
     
-    // NPC stats: Player stats ± 1, minimum 1
-    const npcPower = Math.max(1, pPower + (Math.floor(Math.random() * 3) - 1));
-    const npcDefense = Math.max(1, pDefense + (Math.floor(Math.random() * 3) - 1));
-    
-    // NPC Credits: locked to ±50% of player's current credits
-    const pCredits = state?.credits || 0;
-    const variance = (Math.random() * 1.0) - 0.5; // -0.5 to +0.5
-    const npcCredits = Math.floor(pCredits * (1 + variance));
+    let npcPower: number;
+    let npcDefense: number;
+
+    if (isRuin) {
+      // Ruin Sector: High risk, high reward (+5 / -1)
+      npcPower = Math.max(1, pPower + (Math.floor(Math.random() * 7) - 1));
+      npcDefense = Math.max(1, pDefense + (Math.floor(Math.random() * 7) - 1));
+    } else {
+      // Normal Sector: Standard variance (+3 / -3)
+      npcPower = Math.max(1, pPower + (Math.floor(Math.random() * 7) - 3));
+      npcDefense = Math.max(1, pDefense + (Math.floor(Math.random() * 7) - 3));
+    }
+
+    // Apply Archetypes (20% Glass Cannon, 20% Tank, 60% Standard)
+    const archetypeRoll = Math.random();
+    let archetype = "Standard";
+    if (archetypeRoll < 0.2) {
+      archetype = "Glass Cannon";
+      npcPower = Math.ceil(npcPower * 1.5);
+      npcDefense = Math.max(1, Math.floor(npcDefense * 0.5));
+    } else if (archetypeRoll < 0.4) {
+      archetype = "Tank";
+      npcPower = Math.max(1, Math.floor(npcPower * 0.5));
+      npcDefense = Math.ceil(npcDefense * 1.5);
+    }
+
+    // NPC Credits: Decoupled from player, based on NPC stats
+    const baseCredits = (npcPower + npcDefense) * 8;
+    const npcCredits = Math.floor(baseCredits * (0.7 + Math.random() * 0.6)); // 70% to 130%
 
     const isAmbush = Math.random() < 0.4;
 
     setEncounter({
-      name,
+      name: `${name}${archetype !== "Standard" ? ` (${archetype})` : ""}`,
       power: npcPower,
       defense: npcDefense,
       credits: npcCredits,
@@ -464,7 +507,7 @@ export default function App() {
     });
   };
 
-  const handleEncounterAction = (action: 'attack' | 'defend' | 'avoid' | 'fly') => {
+  const handleEncounterAction = (action: 'attack' | 'defend' | 'avoid' | 'fly' | 'trade' | 'confirmTrade') => {
     if (!state || !encounter) return;
 
     const rollDice = (count: number) => {
@@ -498,6 +541,43 @@ export default function App() {
       addLog(msg);
       setEncounter(e => e ? { ...e, result: msg, status: 'finished' } : null);
     };
+
+    if (action === 'trade') {
+      const specialItem = state.inventory.find(i => i.isSpecial);
+      if (!specialItem) {
+        addLog("No special items to trade.");
+        return;
+      }
+      setEncounter(prev => prev ? { ...prev, status: 'trading', offerItem: specialItem, offerAmount: Math.floor(prev.credits / 2) } : null);
+      return;
+    }
+
+    if (action === 'confirmTrade') {
+      if (!encounter || !encounter.offerItem || encounter.offerAmount === undefined) return;
+      
+      const roll = Math.random();
+      // Aggressiveness: higher offer = lower acceptance threshold
+      const acceptanceThreshold = 1 - (encounter.offerAmount / encounter.credits);
+      
+      if (roll < acceptanceThreshold) {
+        const msg = `${encounter.name} accepted the trade! You received ${encounter.offerAmount} credits.`;
+        addLog(msg);
+        setState(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            credits: prev.credits + (encounter.offerAmount || 0),
+            inventory: prev.inventory.filter(i => i.id !== encounter.offerItem?.id)
+          };
+        });
+        setEncounter(prev => prev ? { ...prev, result: msg, status: 'finished' } : null);
+      } else {
+        const msg = `${encounter.name} rejected the offer and disengaged.`;
+        addLog(msg);
+        setEncounter(prev => prev ? { ...prev, result: msg, status: 'finished' } : null);
+      }
+      return;
+    }
 
     if (action === 'fly') {
       addLog("You successfully flew away.");
@@ -961,11 +1041,11 @@ export default function App() {
                           </div>
                         </div>
 
-                        {state.inventory.length > 0 && (
+                        {state.inventory.filter(i => !i.isSpecial).length > 0 && (
                           <div className="space-y-2">
                             <p className="text-[10px] opacity-50 uppercase">Inventory Items</p>
                             <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
-                              {state.inventory.map((item, i) => (
+                              {state.inventory.map((item, i) => !item.isSpecial && (
                                 <div key={i} className="flex justify-between items-center p-1 border border-white/10 text-[10px]">
                                   <span className="truncate flex-1 mr-2">{item.name}</span>
                                   <button 
@@ -977,6 +1057,13 @@ export default function App() {
                                 </div>
                               ))}
                             </div>
+                          </div>
+                        )}
+
+                        {state.inventory.some(i => i.isSpecial) && (
+                          <div className="p-2 border border-blue-500/30 bg-blue-500/5">
+                            <p className="text-[8px] text-blue-400 uppercase font-bold">Special Cargo Detected</p>
+                            <p className="text-[8px] opacity-50">Midnight Song modifiers cannot be sold at standard hubs. Trade them with other vessels.</p>
                           </div>
                         )}
 
@@ -1249,13 +1336,17 @@ export default function App() {
                       };
                     });
                     setDiscovery(null);
+                    setShowInventory(false);
                   }} 
                   className="pixel-button w-full py-2 disabled:opacity-30"
                 >
                   {state && (state.inventory.length + state.nocturnium + (discovery.item ? 1 : (discovery.nocturniumYield || 0)) > state.cargoCapacity) ? 'MANAGE CARGO' : 'COLLECT'}
                 </button>
                 <button 
-                  onClick={() => setDiscovery(null)} 
+                  onClick={() => {
+                    setDiscovery(null);
+                    setShowInventory(false);
+                  }} 
                   className="text-[10px] opacity-50 hover:opacity-100 uppercase tracking-widest"
                 >
                   Abandon
@@ -1327,6 +1418,15 @@ export default function App() {
                           <Crosshair size={18} className={totalPower >= 1 ? "group-hover:animate-spin" : ""} />
                           <span>EXTORT (ATTACK)</span>
                         </button>
+                        {state.inventory.some(i => i.isSpecial) && (
+                          <button 
+                            onClick={() => handleEncounterAction('trade')} 
+                            className="pixel-button flex items-center justify-center gap-2 text-emerald-400 border-emerald-500/50"
+                          >
+                            <TrendingUp size={18} />
+                            <span>OFFER TRADE</span>
+                          </button>
+                        )}
                         {totalPower < 1 && (
                           <p className="text-[10px] text-red-500 animate-pulse">WEAPONS OFFLINE: ACQUIRE UPGRADES TO ATTACK</p>
                         )}
@@ -1365,6 +1465,49 @@ export default function App() {
                           <span>FLY AWAY (GUARANTEED)</span>
                         </button>
                       </>
+                    )}
+
+                    {encounter.status === 'trading' && (
+                      <div className="space-y-6">
+                        <div className="p-4 border border-emerald-500/30 bg-emerald-500/5 space-y-2">
+                          <p className="text-xs text-emerald-400 font-bold uppercase">Trading: {encounter.offerItem?.name}</p>
+                          <p className="text-[10px] opacity-70">The {encounter.name} has {encounter.credits} credits available.</p>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs">YOUR OFFER:</span>
+                            <span className="text-xl font-bold text-emerald-400">{encounter.offerAmount} CR</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="1" 
+                            max={encounter.credits} 
+                            value={encounter.offerAmount} 
+                            onChange={(e) => setEncounter(prev => prev ? { ...prev, offerAmount: parseInt(e.target.value) } : null)}
+                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                          />
+                          <div className="flex justify-between text-[8px] opacity-50">
+                            <span>1 CR</span>
+                            <span>{encounter.credits} CR</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <button 
+                            onClick={() => handleEncounterAction('confirmTrade')} 
+                            className="pixel-button bg-emerald-600 text-white border-emerald-400"
+                          >
+                            CONFIRM OFFER
+                          </button>
+                          <button 
+                            onClick={() => setEncounter(prev => prev ? { ...prev, status: 'waiting' } : null)} 
+                            className="pixel-button"
+                          >
+                            CANCEL
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </>

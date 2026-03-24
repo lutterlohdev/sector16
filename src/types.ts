@@ -9,6 +9,12 @@ export interface Item {
   id: number;
   name: string;
   value: number;
+  isSpecial?: boolean;
+  cargoSize?: number;
+  modifier?: {
+    type: 'attack' | 'defense';
+    value: number;
+  };
 }
 
 export interface GameState {

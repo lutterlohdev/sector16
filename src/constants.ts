@@ -16,6 +16,41 @@ export const SECTOR_DISTRIBUTION: SectorType[] = [
 
 export const HUB_NAMES = ["Endless Summer Station", "The Nocturnal Hub"];
 
+export const NEBULA_SPECIAL_ITEMS: Item[] = [
+  { 
+    id: 101, 
+    name: "Midnight Requiem", 
+    value: 5000, 
+    isSpecial: true, 
+    cargoSize: 8, 
+    modifier: { type: 'attack', value: 2 } 
+  },
+  { 
+    id: 102, 
+    name: "Nocturnal Symphony", 
+    value: 5000, 
+    isSpecial: true, 
+    cargoSize: 8, 
+    modifier: { type: 'attack', value: 2 } 
+  },
+  { 
+    id: 103, 
+    name: "Starlight Lullaby", 
+    value: 5000, 
+    isSpecial: true, 
+    cargoSize: 8, 
+    modifier: { type: 'defense', value: 1 } 
+  },
+  { 
+    id: 104, 
+    name: "Lunar Serenade", 
+    value: 5000, 
+    isSpecial: true, 
+    cargoSize: 8, 
+    modifier: { type: 'defense', value: 1 } 
+  }
+];
+
 export const SPACE_JUNK: Item[] = [
   { id: 1, name: "Frayed Power Cable", value: 64 },
   { id: 2, name: "Rusted Servo Motor", value: 64 },
