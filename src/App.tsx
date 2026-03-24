@@ -20,7 +20,8 @@ import {
   RefreshCcw,
   AlertTriangle,
   Crosshair,
-  Archive
+  Archive,
+  Wand2
 } from 'lucide-react';
 import { GameState, Sector, SectorType, Item } from './types';
 import { SECTOR_DISTRIBUTION, HUB_NAMES, SPACE_JUNK, NPC_NAMES_PREFIX, NPC_NAMES_SUFFIX } from './constants';
@@ -55,6 +56,9 @@ const INITIAL_STATE: GameState = {
   storageCapacity: 8,
   storageLockerCoords: { x: 0, y: 0 }, // Will be set on first load
   map: [],
+  hasMetWizard: false,
+  hasCloakingSpell: false,
+  wizardCoords: null,
 };
 
 // Generate static map
@@ -103,12 +107,14 @@ export default function App() {
   const [jumpProgress, setJumpProgress] = useState(0);
   const [showInventory, setShowInventory] = useState(false);
   const [showStorage, setShowStorage] = useState(false);
+  const [wizardEncounter, setWizardEncounter] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [discovery, setDiscovery] = useState<{
     title: string;
     message: string;
     item?: Item;
     nocturniumYield?: number;
+    isHazard?: boolean;
   } | null>(null);
   const [encounter, setEncounter] = useState<{
     name: string;
@@ -160,11 +166,40 @@ export default function App() {
       const sectorIndex = Math.floor(newY / 16) * 4 + Math.floor(newX / 16);
       const sector = prev.map[sectorIndex];
       
+      // Radiation Hazard (Nebula only)
+      let nextLog = [...prev.log];
+      let nextDamagedUpgrades = { ...prev.damagedUpgrades };
+      if (sector.type === 'Nebula' && !prev.hasCloakingSpell && Math.random() < 0.2) {
+        if (!nextDamagedUpgrades.shields) {
+          nextDamagedUpgrades.shields = true;
+          nextLog = [`RADIATION HAZARD: SHIELDS systems damaged!`, ...nextLog].slice(0, 10);
+          setTimeout(() => setDiscovery({
+            title: "RADIATION HAZARD",
+            message: "Intense cosmic radiation has compromised your shield emitters! Systems are offline until repaired at a Trade Hub.",
+            isHazard: true
+          }), 0);
+        }
+      }
+
       // Check for encounter chance on move - NO encounters in Trade Hubs or Asteroid Belts
-      let encounterChance = (sector.type === 'Trade Hub' || sector.type === 'Asteroid Belt') ? 0 : 0.05;
+      let encounterChance = (sector.type === 'Trade Hub' || sector.type === 'Asteroid Belt' || prev.hasCloakingSpell) ? 0 : 0.05;
 
       if (encounterChance > 0 && Math.random() < encounterChance) {
         setTimeout(() => triggerEncounter(sector.type === 'Ruin Sector'), 0);
+      }
+
+      // Wizard Encounter (Nebula only)
+      if (sector.type === 'Nebula') {
+        let wizardFound = false;
+        if (!prev.hasMetWizard && prev.wizardCoords && newX === prev.wizardCoords.x && newY === prev.wizardCoords.y) {
+          wizardFound = true;
+        } else if (prev.hasMetWizard && !prev.hasCloakingSpell && Math.random() < 1/16) {
+          wizardFound = true;
+        }
+
+        if (wizardFound) {
+          setTimeout(() => setWizardEncounter(true), 0);
+        }
       }
 
       // Mining Encounter (Asteroid Belt only)
@@ -179,7 +214,9 @@ export default function App() {
         return {
           ...prev,
           globalCoords: { x: newX, y: newY },
-          moveCount: nextMoveCount
+          moveCount: nextMoveCount,
+          log: nextLog,
+          damagedUpgrades: nextDamagedUpgrades
         };
       }
 
@@ -210,14 +247,18 @@ export default function App() {
         return {
           ...prev,
           globalCoords: { x: newX, y: newY },
-          moveCount: nextMoveCount
+          moveCount: nextMoveCount,
+          log: nextLog,
+          damagedUpgrades: nextDamagedUpgrades
         };
       }
 
       return {
         ...prev,
         globalCoords: { x: newX, y: newY },
-        moveCount: nextMoveCount
+        moveCount: nextMoveCount,
+        log: nextLog,
+        damagedUpgrades: nextDamagedUpgrades
       };
     });
   };
@@ -256,6 +297,19 @@ export default function App() {
             };
           }
         }
+
+        // Generate wizard if not set
+        if (!nextState.wizardCoords && !nextState.hasMetWizard) {
+          const nebulas = nextState.map.filter(s => s.type === 'Nebula');
+          if (nebulas.length > 0) {
+            const nebula = nebulas[Math.floor(Math.random() * nebulas.length)];
+            nextState.wizardCoords = {
+              x: nebula.coords.c * 16 + Math.floor(Math.random() * 16),
+              y: nebula.coords.r * 16 + Math.floor(Math.random() * 16)
+            };
+          }
+        }
+
         setState(nextState);
       } catch (e) {
         const nextState = { ...INITIAL_STATE, map: generateMap() };
@@ -273,6 +327,16 @@ export default function App() {
         nextState.storageLockerCoords = {
           x: hub.coords.c * 16 + rx,
           y: hub.coords.r * 16 + ry
+        };
+      }
+
+      // Generate wizard if not set
+      const nebulas = nextState.map.filter(s => s.type === 'Nebula');
+      if (nebulas.length > 0) {
+        const nebula = nebulas[Math.floor(Math.random() * nebulas.length)];
+        nextState.wizardCoords = {
+          x: nebula.coords.c * 16 + Math.floor(Math.random() * 16),
+          y: nebula.coords.r * 16 + Math.floor(Math.random() * 16)
         };
       }
       setState(nextState);
@@ -308,6 +372,16 @@ export default function App() {
         y: hub.coords.r * 16 + ry
       };
     }
+
+    const nebulas = nextState.map.filter(s => s.type === 'Nebula');
+    if (nebulas.length > 0) {
+      const nebula = nebulas[Math.floor(Math.random() * nebulas.length)];
+      nextState.wizardCoords = {
+        x: nebula.coords.c * 16 + Math.floor(Math.random() * 16),
+        y: nebula.coords.r * 16 + Math.floor(Math.random() * 16)
+      };
+    }
+
     setState(nextState);
     setShowResetConfirm(false);
   };
@@ -394,7 +468,7 @@ export default function App() {
     }
 
     // Random Encounter
-    const encounterChance = newSector.type === 'Trade Hub' ? 0 : 0.05;
+    const encounterChance = (newSector.type === 'Trade Hub' || state.hasCloakingSpell) ? 0 : 0.05;
     if (encounterChance > 0 && Math.random() < encounterChance) {
       triggerEncounter(newSector.type === 'Ruin Sector');
     }
@@ -1066,6 +1140,10 @@ export default function App() {
                         <Archive className="text-blue-400 z-10 animate-pulse" size={16} />
                       )}
 
+                      {state.wizardCoords && state.wizardCoords.x === x && state.wizardCoords.y === y && !state.hasMetWizard && (
+                        <Wand2 className="text-purple-400 z-10 animate-bounce" size={16} />
+                      )}
+
               {/* Sector Type Icons (Sparse) */}
               {x % 16 === 8 && y % 16 === 8 && !isPlayer && (
                 <div className={`${sector.type === 'Trade Hub' ? 'text-emerald-400 opacity-100 scale-150' : 'opacity-20'}`}>
@@ -1413,6 +1491,14 @@ export default function App() {
               </div>
               <span className="text-[8px] opacity-50 uppercase">Defense</span>
             </div>
+            {state.hasCloakingSpell && (
+              <div className="flex flex-col items-center">
+                <div className="flex items-center gap-1 text-red-500 animate-pulse">
+                  <Zap size={12} fill="currentColor" />
+                </div>
+                <span className="text-[8px] text-red-500 uppercase font-bold">Cloak</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1620,46 +1706,148 @@ export default function App() {
                 </div>
               )}
               
-              <div className="flex flex-col gap-2">
-                <button 
-                  onClick={() => {
-                    if (!state) return;
-                    const yield_ = discovery.nocturniumYield || 0;
-                    const item = discovery.item;
-                    const currentUsed = state.inventory.length + state.nocturnium;
-                    const spaceNeeded = item ? 1 : yield_;
+              {discovery.isHazard ? (
+                <div className="flex flex-col gap-2">
+                  <button 
+                    onClick={() => setDiscovery(null)} 
+                    className="pixel-button w-full py-2 bg-red-500/20 border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
+                  >
+                    ACKNOWLEDGE
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <button 
+                    onClick={() => {
+                      if (!state) return;
+                      const yield_ = discovery.nocturniumYield || 0;
+                      const item = discovery.item;
+                      const currentUsed = state.inventory.length + state.nocturnium;
+                      const spaceNeeded = item ? 1 : yield_;
 
-                    if (currentUsed + spaceNeeded > state.cargoCapacity) {
-                      addLog("Cargo hold full. Must drop items to collect.");
-                      setShowInventory(true);
-                      return;
-                    }
+                      if (currentUsed + spaceNeeded > state.cargoCapacity) {
+                        addLog("Cargo hold full. Must drop items to collect.");
+                        setShowInventory(true);
+                        return;
+                      }
 
-                    setState(prev => {
-                      if (!prev) return prev;
-                      return {
-                        ...prev,
-                        nocturnium: prev.nocturnium + yield_,
-                        inventory: item ? [...prev.inventory, item] : prev.inventory
-                      };
-                    });
-                    setDiscovery(null);
-                    setShowInventory(false);
-                  }} 
-                  className="pixel-button w-full py-2 disabled:opacity-30"
-                >
-                  {state && (state.inventory.length + state.nocturnium + (discovery.item ? 1 : (discovery.nocturniumYield || 0)) > state.cargoCapacity) ? 'MANAGE CARGO' : 'COLLECT'}
-                </button>
-                <button 
-                  onClick={() => {
-                    setDiscovery(null);
-                    setShowInventory(false);
-                  }} 
-                  className="text-[10px] opacity-50 hover:opacity-100 uppercase tracking-widest"
-                >
-                  Abandon
-                </button>
+                      setState(prev => {
+                        if (!prev) return prev;
+                        return {
+                          ...prev,
+                          nocturnium: prev.nocturnium + yield_,
+                          inventory: item ? [...prev.inventory, item] : prev.inventory
+                        };
+                      });
+                      setDiscovery(null);
+                      setShowInventory(false);
+                    }} 
+                    className="pixel-button w-full py-2 disabled:opacity-30"
+                  >
+                    {state && (state.inventory.length + state.nocturnium + (discovery.item ? 1 : (discovery.nocturniumYield || 0)) > state.cargoCapacity) ? 'MANAGE CARGO' : 'COLLECT'}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setDiscovery(null);
+                      setShowInventory(false);
+                    }} 
+                    className="text-[10px] opacity-50 hover:opacity-100 uppercase tracking-widest"
+                  >
+                    Abandon
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {wizardEncounter && (
+          <motion.div 
+            key="wizard-modal"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="fixed inset-0 z-[250] flex items-center justify-center p-8 bg-black/90 backdrop-blur-md"
+          >
+            <div className="w-full max-w-md pixel-border bg-black p-8 text-center space-y-6 border-purple-500/50">
+              <div className="relative inline-block">
+                <Wand2 className="mx-auto text-purple-400 animate-bounce" size={48} />
+                <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full" />
               </div>
+              
+              <h3 className="text-xl font-bold tracking-widest text-purple-400 uppercase">The Mysterious Wizard</h3>
+              
+              {state && !state.hasMetWizard ? (
+                <>
+                  <p className="text-sm leading-relaxed italic opacity-80">
+                    "Ah, a traveler in the mist. I seek a specific artifact to power my experiments... 
+                    Bring me a <span className="text-emerald-400 font-bold">Hydroponics Grow Light</span>, 
+                    and I shall grant you a spell of absolute invisibility."
+                  </p>
+                  <p className="text-[10px] opacity-50">
+                    "I must vanish now. The nebulas are my home, but I am never in one place for long. 
+                    Traverse the clouds to find me again when you have what I require."
+                  </p>
+                  <button 
+                    onClick={() => {
+                      setState(prev => prev ? ({ ...prev, hasMetWizard: true, wizardCoords: null }) : null);
+                      setWizardEncounter(false);
+                      addLog("Met the Mysterious Wizard. He seeks a Hydroponics Grow Light.");
+                    }} 
+                    className="pixel-button w-full py-2 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white"
+                  >
+                    "I WILL FIND IT."
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm leading-relaxed italic opacity-80">
+                    "We meet again, traveler. Do you have the light I seek?"
+                  </p>
+                  
+                  {state && state.inventory.some(i => i.id === 39) ? (
+                    <div className="space-y-4">
+                      <div className="p-3 border border-emerald-500/30 bg-emerald-500/5">
+                        <p className="text-[10px] text-emerald-400 uppercase font-bold">Item Detected: Hydroponics Grow Light</p>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setState(prev => {
+                            if (!prev) return prev;
+                            const itemIdx = prev.inventory.findIndex(i => i.id === 39);
+                            const nextInv = [...prev.inventory];
+                            nextInv.splice(itemIdx, 1);
+                            return {
+                              ...prev,
+                              inventory: nextInv,
+                              hasCloakingSpell: true,
+                              wizardCoords: null // Reset wizard location
+                            };
+                          });
+                          setWizardEncounter(false);
+                          addLog("Exchanged Grow Light for the Cloaking Spell!");
+                        }} 
+                        className="pixel-button w-full py-2 bg-purple-500/20 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white"
+                      >
+                        EXCHANGE ITEM FOR SPELL
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs text-red-400">You do not have the Hydroponics Grow Light.</p>
+                      <p className="text-[10px] opacity-50 italic">
+                        "Gotta keep moving... find me again when you have the item."
+                      </p>
+                      <button 
+                        onClick={() => setWizardEncounter(false)} 
+                        className="pixel-button w-full py-2 opacity-50"
+                      >
+                        CONTINUE SEARCH
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
             </div>
           </motion.div>
         )}

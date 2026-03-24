@@ -39,6 +39,9 @@ export interface GameState {
   storageCapacity: number;
   storageLockerCoords: { x: number; y: number };
   map: Sector[];
+  hasMetWizard: boolean;
+  hasCloakingSpell: boolean;
+  wizardCoords: { x: number; y: number } | null;
 }
 
 export interface Sector {
