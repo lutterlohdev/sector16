@@ -16,41 +16,6 @@ export const SECTOR_DISTRIBUTION: SectorType[] = [
 
 export const HUB_NAMES = ["Endless Summer Station", "The Nocturnal Hub"];
 
-export const NEBULA_SPECIAL_ITEMS: Item[] = [
-  { 
-    id: 101, 
-    name: "Midnight Requiem", 
-    value: 5000, 
-    isSpecial: true, 
-    cargoSize: 8, 
-    modifier: { type: 'attack', value: 2 } 
-  },
-  { 
-    id: 102, 
-    name: "Nocturnal Symphony", 
-    value: 5000, 
-    isSpecial: true, 
-    cargoSize: 8, 
-    modifier: { type: 'attack', value: 2 } 
-  },
-  { 
-    id: 103, 
-    name: "Starlight Lullaby", 
-    value: 5000, 
-    isSpecial: true, 
-    cargoSize: 8, 
-    modifier: { type: 'defense', value: 1 } 
-  },
-  { 
-    id: 104, 
-    name: "Lunar Serenade", 
-    value: 5000, 
-    isSpecial: true, 
-    cargoSize: 8, 
-    modifier: { type: 'defense', value: 1 } 
-  }
-];
-
 export const SPACE_JUNK: Item[] = [
   { id: 1, name: "Frayed Power Cable", value: 64 },
   { id: 2, name: "Rusted Servo Motor", value: 64 },
@@ -118,5 +83,18 @@ export const SPACE_JUNK: Item[] = [
   { id: 64, name: "The Genesis Orb", value: 32000 }
 ];
 
-export const NPC_NAMES_PREFIX = ["The", "Vampire's", "Lost", "Kids of the", "Sunset", "Neon", "Shadow", "Comet", "Void", "Stellar"];
-export const NPC_NAMES_SUFFIX = ["Shadow", "Gambit", "Boy", "Void", "Cruiser", "Medusa", "Ghost", "Reaper", "Wanderer", "Drifter"];
+export const NPC_NAMES_PREFIX = [
+  "The", "Vampire's", "Lost", "Kids of the", "Sunset", "Neon", "Shadow", "Comet", "Void", "Stellar",
+  "Tydirium", "Coaxium", "Tantive", "Corellian", "Kuat", "Fondor", "Sullust", "Nebulon",
+  "Quasar", "Arquitens", "Pelta", "Gozanti", "Razor", "Outrider", "Ebon", "Moldy", "Rogue",
+  "Kyber", "Holocron", "Aurebesh"
+];
+export const NPC_NAMES_SUFFIX = [
+  "Shadow", "Gambit", "Boy", "Void", "Cruiser", "Medusa", "Ghost", "Reaper", "Wanderer", "Drifter",
+  "Crest", "Hawk", "Crow", "One", "Crystal", "Run", "Station", "Hub", "Yard", "Frigate",
+  "Carrier", "Command", "Transport", "Shuttle", "Barge", "Yacht", "Skiff", "Speeder", "Tank", "Walker",
+  "Droid", "Fighter", "Bomber", "Interceptor", "Defender", "Avenger", "Punisher", "Ravager", "Marauder", "Raider",
+  "Corsair", "Privateer", "Smuggler", "Trader", "Merchant", "Miner", "Scavenger", "Salvager", "Explorer", "Surveyor",
+  "Scout", "Sentinel", "Guardian", "Protector", "Warden", "Enforcer", "Executioner", "Assassin", "Hunter", "Stalker",
+  "Predator"
+];

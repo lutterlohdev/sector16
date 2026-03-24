@@ -9,12 +9,6 @@ export interface Item {
   id: number;
   name: string;
   value: number;
-  isSpecial?: boolean;
-  cargoSize?: number;
-  modifier?: {
-    type: 'attack' | 'defense';
-    value: number;
-  };
 }
 
 export interface GameState {
@@ -31,13 +25,20 @@ export interface GameState {
     cargo: number;
     shields: number;
     weapons: number;
+    storage: number;
   };
   damagedUpgrades: {
     cargo: boolean;
     shields: boolean;
     weapons: boolean;
+    storage: boolean;
   };
   moveCount: number;
+  log: string[];
+  storageLocker: Item[];
+  storageCapacity: number;
+  storageLockerCoords: { x: number; y: number };
+  map: Sector[];
 }
 
 export interface Sector {

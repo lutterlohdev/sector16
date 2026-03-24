@@ -19,10 +19,11 @@ import {
   Move,
   RefreshCcw,
   AlertTriangle,
-  Crosshair
+  Crosshair,
+  Archive
 } from 'lucide-react';
 import { GameState, Sector, SectorType, Item } from './types';
-import { SECTOR_DISTRIBUTION, HUB_NAMES, SPACE_JUNK, NEBULA_SPECIAL_ITEMS, NPC_NAMES_PREFIX, NPC_NAMES_SUFFIX } from './constants';
+import { SECTOR_DISTRIBUTION, HUB_NAMES, SPACE_JUNK, NPC_NAMES_PREFIX, NPC_NAMES_SUFFIX } from './constants';
 
 const STORAGE_KEY = 'sector16_save_v1';
 
@@ -31,22 +32,29 @@ const INITIAL_STATE: GameState = {
   credits: 50,
   nocturnium: 0,
   cargoCapacity: 8,
-  power: 1,
-  defense: 1,
+  power: 0,
+  defense: 0,
   inventory: [],
   globalCoords: { x: 40, y: 24 },
   lastJumpTime: Date.now(),
   upgrades: {
     cargo: 0,
-    shields: 1,
-    weapons: 1,
+    shields: 0,
+    weapons: 0,
+    storage: 0,
   },
   damagedUpgrades: {
     cargo: false,
     shields: false,
     weapons: false,
+    storage: false,
   },
   moveCount: 0,
+  log: ["System Initialized. Welcome to Sector 16."],
+  storageLocker: [],
+  storageCapacity: 8,
+  storageLockerCoords: { x: 0, y: 0 }, // Will be set on first load
+  map: [],
 };
 
 // Generate static map
@@ -87,13 +95,14 @@ const generateMap = (): Sector[] => {
   return sectors;
 };
 
-const MAP = generateMap();
+// const MAP = generateMap(); // Removed global constant to use state.map
 
 export default function App() {
   const [state, setState] = useState<GameState | null>(null);
   const [isJumping, setIsJumping] = useState(false);
   const [jumpProgress, setJumpProgress] = useState(0);
   const [showInventory, setShowInventory] = useState(false);
+  const [showStorage, setShowStorage] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [discovery, setDiscovery] = useState<{
     title: string;
@@ -108,14 +117,13 @@ export default function App() {
     credits: number;
     type: 'pirate' | 'ruin';
     isAmbush: boolean;
-    status: 'waiting' | 'ambushed' | 'counter-attack' | 'trading' | 'finished';
+    status: 'waiting' | 'ambushed' | 'counter-attack' | 'finished';
     result?: string;
-    clashResult?: string;
+    exchangeResult?: string;
     hasAttacked?: boolean;
-    offerAmount?: number;
-    offerItem?: Item;
+    usedDuctTape?: boolean;
+    tempDefense?: number;
   } | null>(null);
-  const [log, setLog] = useState<string[]>(["System Initialized. Welcome to Sector 16."]);
 
   // Keyboard listeners for sub-sector movement
   useEffect(() => {
@@ -150,7 +158,7 @@ export default function App() {
 
       const nextMoveCount = prev.moveCount + 1;
       const sectorIndex = Math.floor(newY / 16) * 4 + Math.floor(newX / 16);
-      const sector = MAP[sectorIndex];
+      const sector = prev.map[sectorIndex];
       
       // Check for encounter chance on move - NO encounters in Trade Hubs or Asteroid Belts
       let encounterChance = (sector.type === 'Trade Hub' || sector.type === 'Asteroid Belt') ? 0 : 0.05;
@@ -179,12 +187,6 @@ export default function App() {
       const itemIndex = nextMoveCount % SPACE_JUNK.length;
       const candidateItem = SPACE_JUNK[itemIndex];
       
-      // Nebula Special Items
-      let nebulaItem: Item | null = null;
-      if (sector.type === 'Nebula' && Math.random() < 0.1) {
-        nebulaItem = NEBULA_SPECIAL_ITEMS[Math.floor(Math.random() * NEBULA_SPECIAL_ITEMS.length)];
-      }
-
       // Increased rarity: baseOdds = value / 2 (was / 4)
       // Higher value = higher baseOdds = harder to find
       const baseOdds = candidateItem.value / 2;
@@ -197,10 +199,7 @@ export default function App() {
 
       const successThreshold = sectorMultiplier;
       
-      let foundItem = (Math.random() * baseOdds < successThreshold) ? candidateItem : null;
-      
-      // Override if nebula item found
-      if (nebulaItem) foundItem = nebulaItem;
+      const foundItem = (Math.random() * baseOdds < successThreshold) ? candidateItem : null;
 
       if (foundItem) {
         setTimeout(() => setDiscovery({
@@ -230,12 +229,53 @@ export default function App() {
       try {
         const parsed = JSON.parse(saved);
         // Merge with INITIAL_STATE to ensure new fields like subCoords are present
-        setState({ ...INITIAL_STATE, ...parsed });
+        let nextState = { 
+          ...INITIAL_STATE, 
+          ...parsed,
+          upgrades: { ...INITIAL_STATE.upgrades, ...(parsed.upgrades || {}) },
+          damagedUpgrades: { ...INITIAL_STATE.damagedUpgrades, ...(parsed.damagedUpgrades || {}) }
+        };
+        
+        // Ensure map is present
+        if (!nextState.map || nextState.map.length === 0) {
+          nextState.map = generateMap();
+        }
+
+        // Generate storage locker if not set
+        if (nextState.storageLockerCoords.x === 0 && nextState.storageLockerCoords.y === 0) {
+          const hub = nextState.map.find(s => s.name === "Endless Summer Station");
+          if (hub) {
+            let rx, ry;
+            do {
+              rx = Math.floor(Math.random() * 16);
+              ry = Math.floor(Math.random() * 16);
+            } while (rx === 8 && ry === 8);
+            nextState.storageLockerCoords = {
+              x: hub.coords.c * 16 + rx,
+              y: hub.coords.r * 16 + ry
+            };
+          }
+        }
+        setState(nextState);
       } catch (e) {
-        setState(INITIAL_STATE);
+        const nextState = { ...INITIAL_STATE, map: generateMap() };
+        setState(nextState);
       }
     } else {
-      setState(INITIAL_STATE);
+      let nextState = { ...INITIAL_STATE, map: generateMap() };
+      const hub = nextState.map.find(s => s.name === "Endless Summer Station");
+      if (hub) {
+        let rx, ry;
+        do {
+          rx = Math.floor(Math.random() * 16);
+          ry = Math.floor(Math.random() * 16);
+        } while (rx === 8 && ry === 8);
+        nextState.storageLockerCoords = {
+          x: hub.coords.c * 16 + rx,
+          y: hub.coords.r * 16 + ry
+        };
+      }
+      setState(nextState);
     }
   }, []);
 
@@ -247,42 +287,52 @@ export default function App() {
   }, [state]);
 
   const addLog = (msg: string) => {
-    setLog(prev => [msg, ...prev].slice(0, 10));
+    setState(prev => {
+      if (!prev) return prev;
+      return { ...prev, log: [msg, ...prev.log].slice(0, 10) };
+    });
   };
 
   const resetGame = () => {
     localStorage.removeItem(STORAGE_KEY);
-    setState(INITIAL_STATE);
+    const nextState = { ...INITIAL_STATE, map: generateMap(), log: ["System Reset. Welcome to Sector 16."] };
+    const hub = nextState.map.find(s => s.name === "Endless Summer Station");
+    if (hub) {
+      let rx, ry;
+      do {
+        rx = Math.floor(Math.random() * 16);
+        ry = Math.floor(Math.random() * 16);
+      } while (rx === 8 && ry === 8);
+      nextState.storageLockerCoords = {
+        x: hub.coords.c * 16 + rx,
+        y: hub.coords.r * 16 + ry
+      };
+    }
+    setState(nextState);
     setShowResetConfirm(false);
-    setLog(["System Reset. Welcome to Sector 16."]);
   };
 
   const currentSector = useMemo(() => {
-    if (!state) return null;
+    if (!state || !state.map || state.map.length === 0) return null;
     const sectorIndex = Math.floor(state.globalCoords.y / 16) * 4 + Math.floor(state.globalCoords.x / 16);
-    return MAP[sectorIndex];
-  }, [state?.globalCoords]);
+    return state.map[sectorIndex];
+  }, [state?.globalCoords, state?.map]);
 
-  const attackModifier = useMemo(() => {
-    if (!state) return 0;
-    return state.inventory.reduce((acc, item) => acc + (item.modifier?.type === 'attack' ? item.modifier.value : 0), 0);
-  }, [state?.inventory]);
-
-  const defenseModifier = useMemo(() => {
-    if (!state) return 0;
-    return state.inventory.reduce((acc, item) => acc + (item.modifier?.type === 'defense' ? item.modifier.value : 0), 0);
-  }, [state?.inventory]);
+  const isAtStorageLocker = useMemo(() => {
+    if (!state) return false;
+    return state.globalCoords.x === state.storageLockerCoords.x && 
+           state.globalCoords.y === state.storageLockerCoords.y;
+  }, [state?.globalCoords, state?.storageLockerCoords]);
 
   const totalPower = useMemo(() => {
     if (!state) return 0;
-    if (state.power <= 0) return 0;
-    return state.power + attackModifier;
-  }, [state, attackModifier]);
+    return state.power;
+  }, [state]);
 
   const totalDefense = useMemo(() => {
     if (!state) return 0;
-    return state.defense + defenseModifier;
-  }, [state, defenseModifier]);
+    return state.defense + (encounter?.tempDefense || 0);
+  }, [state, encounter?.tempDefense]);
 
 
 
@@ -291,8 +341,8 @@ export default function App() {
     const currentSectorIndex = Math.floor(state.globalCoords.y / 16) * 4 + Math.floor(state.globalCoords.x / 16);
     if (index === currentSectorIndex) return;
 
-    const from = MAP[currentSectorIndex].coords;
-    const to = MAP[index].coords;
+    const from = state.map[currentSectorIndex].coords;
+    const to = state.map[index].coords;
     const dist = Math.abs(from.r - to.r) + Math.abs(from.c - to.c);
     const duration = Math.min(dist * 2000, 8000);
 
@@ -315,36 +365,33 @@ export default function App() {
     if (!state) return;
 
     setIsJumping(false);
-    const newSector = MAP[index];
+    const newSector = state.map[index];
     
+    let damagedTarget: 'cargo' | 'shields' | 'weapons' | null = null;
+    if (newSector.type === 'Nebula' && Math.random() < 0.2) {
+      const upgrades = ['cargo', 'shields', 'weapons'] as const;
+      const target = upgrades[Math.floor(Math.random() * upgrades.length)];
+      if (state.upgrades[target] > 0 && !state.damagedUpgrades[target]) {
+        damagedTarget = target;
+      }
+    }
+
+    const sectorRow = Math.floor(index / 4);
+    const sectorCol = index % 4;
+    const newCoords = { x: sectorCol * 16 + 8, y: sectorRow * 16 + 8 };
+
     setState(prev => {
       if (!prev) return prev;
-      
-      // Nebula Damage
-      if (newSector.type === 'Nebula') {
-        if (Math.random() < 0.2) {
-          const upgrades = ['cargo', 'shields', 'weapons'] as const;
-          const target = upgrades[Math.floor(Math.random() * upgrades.length)];
-          if (prev.upgrades[target] > 0 && !prev.damagedUpgrades[target]) {
-            addLog(`WARNING: Nebula radiation damaged ${target} systems!`);
-            const sectorRow = Math.floor(index / 4);
-            const sectorCol = index % 4;
-            return {
-              ...prev,
-              globalCoords: { x: sectorCol * 16 + 8, y: sectorRow * 16 + 8 },
-              damagedUpgrades: { ...prev.damagedUpgrades, [target]: true }
-            };
-          }
-        }
-      }
-
-      const sectorRow = Math.floor(index / 4);
-      const sectorCol = index % 4;
       return {
         ...prev,
-        globalCoords: { x: sectorCol * 16 + 8, y: sectorRow * 16 + 8 }
+        globalCoords: newCoords,
+        damagedUpgrades: damagedTarget ? { ...prev.damagedUpgrades, [damagedTarget]: true } : prev.damagedUpgrades
       };
     });
+
+    if (damagedTarget) {
+      addLog(`WARNING: Nebula radiation damaged ${damagedTarget} systems!`);
+    }
 
     // Random Encounter
     const encounterChance = newSector.type === 'Trade Hub' ? 0 : 0.05;
@@ -367,12 +414,22 @@ export default function App() {
 
     if (isRuin) {
       // Ruin Sector: High risk, high reward (+5 / -1)
-      npcPower = Math.max(1, pPower + (Math.floor(Math.random() * 7) - 1));
-      npcDefense = Math.max(1, pDefense + (Math.floor(Math.random() * 7) - 1));
+      const maxP = pPower + 5;
+      const minP = pPower <= 5 ? Math.max(1, pPower - 1) : 1;
+      npcPower = Math.floor(Math.random() * (maxP - minP + 1)) + minP;
+
+      const maxD = pDefense + 5;
+      const minD = pDefense <= 5 ? Math.max(1, pDefense - 1) : 1;
+      npcDefense = Math.floor(Math.random() * (maxD - minD + 1)) + minD;
     } else {
       // Normal Sector: Standard variance (+3 / -3)
-      npcPower = Math.max(1, pPower + (Math.floor(Math.random() * 7) - 3));
-      npcDefense = Math.max(1, pDefense + (Math.floor(Math.random() * 7) - 3));
+      const maxP = pPower + 3;
+      const minP = pPower <= 5 ? Math.max(1, pPower - 3) : 1;
+      npcPower = Math.floor(Math.random() * (maxP - minP + 1)) + minP;
+
+      const maxD = pDefense + 3;
+      const minD = pDefense <= 5 ? Math.max(1, pDefense - 3) : 1;
+      npcDefense = Math.floor(Math.random() * (maxD - minD + 1)) + minD;
     }
 
     // Apply Archetypes (20% Glass Cannon, 20% Tank, 60% Standard)
@@ -395,7 +452,7 @@ export default function App() {
     const isAmbush = Math.random() < 0.4;
 
     setEncounter({
-      name: `${name}${archetype !== "Standard" ? ` (${archetype})` : ""}`,
+      name: name,
       power: npcPower,
       defense: npcDefense,
       credits: npcCredits,
@@ -410,7 +467,7 @@ export default function App() {
     if (!state || !currentSector) return;
   };
 
-  const buyUpgrade = (type: 'cargo' | 'shields' | 'weapons') => {
+  const buyUpgrade = (type: 'cargo' | 'shields' | 'weapons' | 'storage') => {
     if (!state) return;
     const basePrice = 16;
     const count = state.upgrades[type];
@@ -424,10 +481,12 @@ export default function App() {
         let nextPower = prev.power;
         let nextDefense = prev.defense;
         let nextCargo = prev.cargoCapacity;
+        let nextStorage = prev.storageCapacity;
 
         if (type === 'cargo') nextCargo += 8;
         if (type === 'shields') nextDefense += 1; // Simple +1
         if (type === 'weapons') nextPower += 1; // Simple +1
+        if (type === 'storage') nextStorage += 8;
 
         return {
           ...prev,
@@ -435,7 +494,8 @@ export default function App() {
           upgrades: nextUpgrades,
           power: nextPower,
           defense: nextDefense,
-          cargoCapacity: nextCargo
+          cargoCapacity: nextCargo,
+          storageCapacity: nextStorage
         };
       });
       addLog(`Purchased ${type} upgrade for ${cost} credits.`);
@@ -444,7 +504,7 @@ export default function App() {
     }
   };
 
-  const repairUpgrade = (type: 'cargo' | 'shields' | 'weapons') => {
+  const repairUpgrade = (type: 'cargo' | 'shields' | 'weapons' | 'storage') => {
     if (!state || !state.damagedUpgrades[type]) return;
     const basePrice = 16;
     const count = state.upgrades[type];
@@ -461,6 +521,50 @@ export default function App() {
     } else {
       addLog("Insufficient credits for repair.");
     }
+  };
+
+  const buyDuctTape = () => {
+    if (!state) return;
+    const cost = 64;
+    const currentCargo = state.nocturnium + state.inventory.length;
+    if (state.credits < cost) {
+      addLog("Insufficient credits for Duct Tape.");
+      return;
+    }
+    if (currentCargo >= state.cargoCapacity) {
+      addLog("No cargo space for Duct Tape.");
+      return;
+    }
+
+    setState(prev => prev ? ({
+      ...prev,
+      credits: prev.credits - cost,
+      inventory: [...prev.inventory, { id: Math.random().toString(36).substr(2, 9), name: 'Duct Tape', value: 16 }]
+    }) : null);
+    addLog("Purchased Duct Tape.");
+  };
+
+  const useDuctTape = () => {
+    if (!state || !encounter || encounter.usedDuctTape) return;
+    const tapeIndex = state.inventory.findIndex(item => item.name === 'Duct Tape');
+    if (tapeIndex === -1) return;
+
+    const newInventory = [...state.inventory];
+    newInventory.splice(tapeIndex, 1);
+
+    setState(prev => prev ? ({
+      ...prev,
+      inventory: newInventory
+    }) : null);
+
+    setEncounter(prev => prev ? ({
+      ...prev,
+      tempDefense: (prev.tempDefense || 0) + 1,
+      usedDuctTape: true,
+      exchangeResult: "Used Duct Tape! Shields reinforced (+1 Defense for this battle)."
+    }) : null);
+
+    addLog("Used Duct Tape to patch the shields.");
   };
 
   const sellAll = () => {
@@ -481,33 +585,35 @@ export default function App() {
   };
 
   const sellItem = (index: number) => {
+    if (!state) return;
+    const item = state.inventory[index];
     setState(prev => {
       if (!prev) return prev;
-      const item = prev.inventory[index];
       const nextInventory = prev.inventory.filter((_, i) => i !== index);
-      addLog(`Sold ${item.name} for ${item.value} credits.`);
       return {
         ...prev,
         credits: prev.credits + item.value,
         inventory: nextInventory
       };
     });
+    addLog(`Sold ${item.name} for ${item.value} credits.`);
   };
 
   const sellNocturnium = (amount: number) => {
+    if (!state || state.nocturnium < amount) return;
+    const value = amount * 3;
     setState(prev => {
-      if (!prev || prev.nocturnium < amount) return prev;
-      const value = amount * 3;
-      addLog(`Sold ${amount} Nocturnium for ${value} credits.`);
+      if (!prev) return prev;
       return {
         ...prev,
         credits: prev.credits + value,
         nocturnium: prev.nocturnium - amount
       };
     });
+    addLog(`Sold ${amount} Nocturnium for ${value} credits.`);
   };
 
-  const handleEncounterAction = (action: 'attack' | 'defend' | 'avoid' | 'fly' | 'trade' | 'confirmTrade') => {
+  const handleEncounterAction = (action: 'attack' | 'defend' | 'avoid' | 'fly') => {
     if (!state || !encounter) return;
 
     const rollDice = (count: number) => {
@@ -515,69 +621,49 @@ export default function App() {
     };
 
     const triggerDeath = (prev: GameState) => {
-      const tradeHub = MAP.find(s => s.type === 'Trade Hub');
+      const tradeHub = prev.map.find(s => s.type === 'Trade Hub');
       const hubCoords = tradeHub ? { x: tradeHub.coords.c * 16 + 8, y: tradeHub.coords.r * 16 + 8 } : { x: 40, y: 24 };
       
-      // Keep all items
-      const nextInventory = prev.inventory;
       const nextCredits = Math.floor(prev.credits * 0.1);
+      const newCapacity = 8;
+      
+      // If inventory + nocturnium > newCapacity, remove random items until it fits
+      let nextInventory = [...prev.inventory];
+      let nextNocturnium = prev.nocturnium;
+      
+      while (nextInventory.length + nextNocturnium > newCapacity) {
+        if (nextInventory.length > 0) {
+          // Remove a random item
+          const index = Math.floor(Math.random() * nextInventory.length);
+          nextInventory.splice(index, 1);
+        } else if (nextNocturnium > 0) {
+          // Remove nocturnium
+          nextNocturnium--;
+        } else {
+          break;
+        }
+      }
 
       return {
         ...prev,
-        power: 1,
-        defense: 1,
+        power: 0,
+        defense: 0,
         credits: nextCredits,
         inventory: nextInventory,
+        nocturnium: nextNocturnium,
         globalCoords: hubCoords,
-        upgrades: { cargo: 0, shields: 1, weapons: 1 },
-        damagedUpgrades: { cargo: false, shields: false, weapons: false },
-        cargoCapacity: 8
+        upgrades: { ...prev.upgrades, cargo: 0, shields: 0, weapons: 0 },
+        damagedUpgrades: { cargo: false, shields: false, weapons: false, storage: false },
+        cargoCapacity: newCapacity
       };
     };
 
     const handleDeathSideEffects = () => {
-      const tradeHub = MAP.find(s => s.type === 'Trade Hub');
+      const tradeHub = state.map.find(s => s.type === 'Trade Hub');
       const msg = `LOOTED! Your ship was disabled. You were towed to ${tradeHub?.name || 'Trade Hub'}. Stats reset. 90% credits lost.`;
       addLog(msg);
       setEncounter(e => e ? { ...e, result: msg, status: 'finished' } : null);
     };
-
-    if (action === 'trade') {
-      const specialItem = state.inventory.find(i => i.isSpecial);
-      if (!specialItem) {
-        addLog("No special items to trade.");
-        return;
-      }
-      setEncounter(prev => prev ? { ...prev, status: 'trading', offerItem: specialItem, offerAmount: Math.floor(prev.credits / 2) } : null);
-      return;
-    }
-
-    if (action === 'confirmTrade') {
-      if (!encounter || !encounter.offerItem || encounter.offerAmount === undefined) return;
-      
-      const roll = Math.random();
-      // Aggressiveness: higher offer = lower acceptance threshold
-      const acceptanceThreshold = 1 - (encounter.offerAmount / encounter.credits);
-      
-      if (roll < acceptanceThreshold) {
-        const msg = `${encounter.name} accepted the trade! You received ${encounter.offerAmount} credits.`;
-        addLog(msg);
-        setState(prev => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            credits: prev.credits + (encounter.offerAmount || 0),
-            inventory: prev.inventory.filter(i => i.id !== encounter.offerItem?.id)
-          };
-        });
-        setEncounter(prev => prev ? { ...prev, result: msg, status: 'finished' } : null);
-      } else {
-        const msg = `${encounter.name} rejected the offer and disengaged.`;
-        addLog(msg);
-        setEncounter(prev => prev ? { ...prev, result: msg, status: 'finished' } : null);
-      }
-      return;
-    }
 
     if (action === 'fly') {
       addLog("You successfully flew away.");
@@ -606,7 +692,7 @@ export default function App() {
                 upgrades: { ...prev.upgrades, shields: nextDefense }
               };
             });
-            setEncounter(prev => prev ? { ...prev, result: "Avoid failed. You took 1 damage and the enemy disengaged.", status: 'finished' } : null);
+            setEncounter(prev => prev ? { ...prev, result: "Avoid failed. You took 1 damage and the other ship disengaged.", status: 'finished' } : null);
           }
         } else {
           addLog("Failed to avoid! Forced to defend.");
@@ -625,7 +711,7 @@ export default function App() {
         return;
       }
 
-      // Clash: Power dice vs Defense dice
+      // Exchange: Power dice vs Defense dice
       const playerDiceCount = Math.min(Math.floor(totalPower), 3);
       const npcDiceCount = Math.min(Math.floor(encounter.defense), 2);
       
@@ -642,11 +728,9 @@ export default function App() {
       }
 
       // Update Player stats: +1 Power per win, -1 Power per loss
-      let pWinsLocal = pWins;
-      let nWinsLocal = nWins;
       setState(prev => {
         if (!prev) return prev;
-        const nextPower = Math.max(0, prev.power + pWinsLocal - nWinsLocal);
+        const nextPower = Math.max(0, prev.power + pWins - nWins);
         return {
           ...prev,
           power: nextPower,
@@ -655,65 +739,80 @@ export default function App() {
       });
 
       // Update NPC stats
-      setEncounter(prev => {
-        if (!prev) return prev;
-        const nextDefense = Math.max(0, prev.defense - pWinsLocal);
-        let clashMsg = `Clash: You rolled [${pDice.join(',')}] vs Enemy [${nDice.join(',')}]. You won ${pWinsLocal} clashes.`;
-        
-        if (pWinsLocal === 0) {
-          clashMsg = `The enemy ship successfully defended itself and flew away. You lost 1 Power in the exchange.`;
+      const nextDefense = Math.max(0, encounter.defense - pWins);
+      let exchangeMsg = `Exchange: You rolled [${pDice.join(',')}] vs Other [${nDice.join(',')}]. You won ${pWins} ${pWins === 1 ? 'exchange' : 'exchanges'}.`;
+      
+      if (pWins === 0) {
+        exchangeMsg = `The other ship successfully defended itself and flew away. You lost 1 Power in the exchange.`;
+      }
+
+      if (nextDefense <= 0) {
+        // Win and loot ship
+        const loot = encounter.credits;
+        let foundItem: Item | null = null;
+        if (Math.random() < (encounter.type === 'ruin' ? 0.8 : 0.3)) {
+           const candidate = SPACE_JUNK[Math.floor(Math.random() * SPACE_JUNK.length)];
+           const baseOdds = candidate.value / 4;
+           const successThreshold = 2; // Combat bonus
+           if (Math.random() * baseOdds < successThreshold) {
+              foundItem = candidate;
+           }
         }
 
-        if (nextDefense <= 0) {
-          // Win and loot ship
-          const loot = prev.credits;
-          let foundItem = null;
-          if (Math.random() < (prev.type === 'ruin' ? 0.8 : 0.3)) {
-             const candidate = SPACE_JUNK[Math.floor(Math.random() * SPACE_JUNK.length)];
-             const baseOdds = candidate.value / 4;
-             const successThreshold = 2; // Combat bonus
-             if (Math.random() * baseOdds < successThreshold) {
-                foundItem = candidate;
-             }
+        // Random Nocturnium loot (up to 8)
+        const noctLoot = Math.floor(Math.random() * 9); // 0 to 8
+
+        setState(s => {
+          if (!s) return s;
+          
+          let nextInventory = [...s.inventory];
+          let nextNocturnium = s.nocturnium;
+          let itemsLooted = 0;
+          let noctLooted = 0;
+
+          // Try to add item
+          if (foundItem && (nextInventory.length + nextNocturnium) < s.cargoCapacity) {
+            nextInventory.push(foundItem);
+            itemsLooted = 1;
           }
 
-          // Deferred state update for loot
-          setTimeout(() => {
-            setState(s => {
-              if (!s) return s;
-              const nextInventory = foundItem && (s.inventory.length + s.nocturnium) < s.cargoCapacity 
-                ? [...s.inventory, foundItem] 
-                : s.inventory;
-              return {
-                ...s,
-                credits: s.credits + loot,
-                inventory: nextInventory
-              };
-            });
-          }, 0);
+          // Try to add nocturnium
+          for (let i = 0; i < noctLoot; i++) {
+            if ((nextInventory.length + nextNocturnium) < s.cargoCapacity) {
+              nextNocturnium++;
+              noctLooted++;
+            } else {
+              break;
+            }
+          }
 
-          const msg = `VICTORY! You destroyed ${prev.name} and looted ${loot} credits.${foundItem ? ` Salvaged: ${foundItem.name}` : ''}`;
-          addLog(msg);
-          return { ...prev, defense: 0, result: msg, clashResult: clashMsg, status: 'finished' };
-        }
+          return {
+            ...s,
+            credits: s.credits + loot,
+            inventory: nextInventory,
+            nocturnium: nextNocturnium
+          };
+        });
 
-        if (pWinsLocal === 0) {
-          const msg = `FAILED ATTACK! The enemy ship successfully defended itself and flew away. You lost 1 Power in the exchange.`;
-          addLog(msg);
-          return { ...prev, result: msg, clashResult: clashMsg, status: 'finished' };
-        }
+        const msg = `VICTORY! You destroyed ${encounter.name} and looted ${loot} credits.${foundItem ? ` Salvaged: ${foundItem.name}` : ''}${noctLoot > 0 ? ` Found ${noctLoot} Nocturnium.` : ''}`;
+        addLog(msg);
+        setEncounter(prev => prev ? { ...prev, defense: 0, result: msg, exchangeResult: exchangeMsg, status: 'finished' } : null);
+      } else if (pWins === 0) {
+        const msg = `FAILED ATTACK! The other ship successfully defended itself and flew away. You lost 1 Power in the exchange.`;
+        addLog(msg);
+        setEncounter(prev => prev ? { ...prev, result: msg, exchangeResult: exchangeMsg, status: 'finished' } : null);
+      } else {
+        setEncounter(prev => prev ? { ...prev, defense: nextDefense, hasAttacked: true, exchangeResult: exchangeMsg } : null);
+      }
 
-        return { ...prev, defense: nextDefense, hasAttacked: true, clashResult: clashMsg };
-      });
-
-      addLog(`Attack: You rolled [${pDice.join(',')}] vs Enemy [${nDice.join(',')}]. You won ${pWinsLocal} clashes.`);
+      addLog(`Attack: You rolled [${pDice.join(',')}] vs Other [${nDice.join(',')}]. You won ${pWins} ${pWins === 1 ? 'exchange' : 'exchanges'}.`);
       return;
     }
 
     if (action === 'defend') {
-      // Clash: NPC Power dice vs Player Defense dice
+      // Exchange: NPC Power dice vs Player Defense dice
       const npcDiceCount = Math.min(Math.floor(encounter.power), 3);
-      const playerDiceCount = Math.min(Math.floor(totalDefense), 2);
+      const playerDiceCount = Math.min(Math.floor(totalDefense + (encounter.tempDefense || 0)), 2);
       
       const nDice = rollDice(npcDiceCount);
       const pDice = rollDice(playerDiceCount);
@@ -731,26 +830,36 @@ export default function App() {
       if (pWinsLocal > nWinsLocal) {
         // Player Wins
         addLog("Defend successful! You have the advantage.");
-        setEncounter(prev => prev ? { ...prev, status: 'counter-attack', clashResult: `Defense: You won the clash! [${pDice.join(',')}] vs [${nDice.join(',')}]` } : null);
+        setEncounter(prev => prev ? { ...prev, status: 'counter-attack', exchangeResult: `Defense: You won the exchange! [${pDice.join(',')}] vs [${nDice.join(',')}]` } : null);
       } else if (pWinsLocal === nWinsLocal) {
         // Split Decision
         if (Math.random() < 0.5) {
-          addLog("Split decision! The enemy ship flies away.");
-          setEncounter(prev => prev ? { ...prev, result: "Split decision. The enemy ship disengaged.", status: 'finished' } : null);
+          addLog("Split decision! The other ship flies away.");
+          setEncounter(prev => prev ? { ...prev, result: "Split decision. The other ship disengaged.", status: 'finished' } : null);
         } else {
-          addLog("Split decision! The enemy ship attacks again!");
-          setEncounter(prev => prev ? { ...prev, clashResult: "Split decision. The enemy ship is coming around for another pass!" } : null);
+          addLog("Split decision! The other ship attacks again!");
+          setEncounter(prev => prev ? { ...prev, exchangeResult: "Split decision. The other ship is coming around for another pass!" } : null);
         }
       } else {
         // Player Loses
         addLog("Defend failed! You took damage.");
-        if (state.defense - 1 <= 0) {
+        
+        // Handle temp defense first
+        let remainingLoss = nWinsLocal;
+        let newTempDefense = encounter.tempDefense || 0;
+        if (newTempDefense > 0) {
+          const reduction = Math.min(newTempDefense, remainingLoss);
+          newTempDefense -= reduction;
+          remainingLoss -= reduction;
+        }
+
+        if (state.defense - remainingLoss <= 0) {
           setState(prev => prev ? triggerDeath(prev) : null);
           handleDeathSideEffects();
         } else {
           setState(prev => {
             if (!prev) return prev;
-            const nextDefense = prev.defense - 1;
+            const nextDefense = prev.defense - remainingLoss;
             return { 
               ...prev, 
               defense: nextDefense,
@@ -759,11 +868,11 @@ export default function App() {
           });
 
           if (Math.random() < 0.6) {
-            addLog("The enemy ship attacks again!");
-            setEncounter(prev => prev ? { ...prev, clashResult: "Defend failed. You lost 1 Defense. The enemy ship attacks again!" } : null);
+            addLog("The other ship attacks again!");
+            setEncounter(prev => prev ? { ...prev, exchangeResult: `Defend failed. You lost ${nWinsLocal} Defense. The other ship attacks again!`, tempDefense: newTempDefense } : null);
           } else {
-            addLog("The enemy ship disengages.");
-            setEncounter(prev => prev ? { ...prev, result: "Defend failed. You lost 1 Defense. The enemy ship disengaged.", status: 'finished' } : null);
+            addLog("The other ship disengages.");
+            setEncounter(prev => prev ? { ...prev, result: `Defend failed. You lost ${nWinsLocal} Defense. The other ship disengaged.`, status: 'finished' } : null);
           }
         }
       }
@@ -930,7 +1039,7 @@ export default function App() {
                   const sX = Math.floor(x / 16);
                   const sY = Math.floor(y / 16);
                   const sIndex = sY * 4 + sX;
-                  const sector = MAP[sIndex];
+                  const sector = state.map[sIndex];
                   const isPlayer = state.globalCoords.x === x && state.globalCoords.y === y;
                   const isCurrentSector = currentSector?.id === sIndex;
 
@@ -951,6 +1060,10 @@ export default function App() {
                         <div 
                           className="w-4 h-4 bg-white rotate-45 z-10 shadow-[0_0_10px_rgba(255,255,255,0.5)]"
                         />
+                      )}
+
+                      {state.storageLockerCoords.x === x && state.storageLockerCoords.y === y && (
+                        <Archive className="text-blue-400 z-10 animate-pulse" size={16} />
                       )}
 
               {/* Sector Type Icons (Sparse) */}
@@ -974,7 +1087,7 @@ export default function App() {
               <div className="pixel-border bg-black/80 p-2 space-y-2">
                 <p className="text-[8px] opacity-50 text-center uppercase">Jump Drive</p>
                 <div className="grid grid-cols-4 gap-1">
-                  {MAP.map((s, i) => {
+                  {state.map.map((s, i) => {
                     const currentSectorIndex = Math.floor(state.globalCoords.y / 16) * 4 + Math.floor(state.globalCoords.x / 16);
                     const isCurrent = currentSectorIndex === i;
                     return (
@@ -1005,12 +1118,90 @@ export default function App() {
             <div className="mt-6 space-y-4">
               {currentSector?.type === 'Trade Hub' && (
                 <div className="space-y-4">
+                  {currentSector?.name === "Endless Summer Station" && (
+                    <div className="space-y-4 mb-8">
+                      {isAtStorageLocker ? (
+                        <div className="p-4 border border-blue-500/30 bg-blue-500/5 space-y-4">
+                          <div className="flex justify-between items-center border-b border-blue-500/30 pb-2">
+                            <p className="text-sm text-blue-400 font-bold uppercase tracking-widest">Storage Locker Access</p>
+                            <Archive size={16} className="text-blue-400" />
+                          </div>
+                          <p className="text-[10px] opacity-70 italic">
+                            A secure, non-lootable storage facility. Store your items here for safekeeping.
+                          </p>
+                          <button 
+                            onClick={() => setShowStorage(true)}
+                            className="w-full pixel-button py-2 text-xs bg-blue-500/20 border-blue-500/50 hover:bg-blue-500/40"
+                          >
+                            OPEN STORAGE LOCKER
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="p-6 border border-blue-500/20 bg-blue-500/5 flex flex-col items-center gap-4 text-center">
+                          <div className="relative">
+                            <Archive className="text-blue-400 animate-pulse" size={48} />
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-ping" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-blue-400 font-bold uppercase tracking-widest">Storage Locker Detected</p>
+                            <p className="text-xs opacity-60 mt-2 leading-relaxed">
+                              Secure storage signature found at remote coordinates.<br/>
+                              Navigate to <span className="text-white font-bold">[{state.storageLockerCoords.x % 16}, {state.storageLockerCoords.y % 16}]</span> within this sector to access your locker.
+                            </p>
+                          </div>
+                          <div className="flex flex-col gap-1 w-full max-w-[200px]">
+                            <div className="flex justify-between text-[10px] opacity-50 uppercase">
+                              <span>Distance</span>
+                              <span>{Math.abs((state.storageLockerCoords.x % 16) - (state.globalCoords.x % 16)) + Math.abs((state.storageLockerCoords.y % 16) - (state.globalCoords.y % 16))} Units</span>
+                            </div>
+                            <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                              <motion.div 
+                                className="h-full bg-blue-500"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${Math.max(0, 100 - (Math.abs((state.storageLockerCoords.x % 16) - (state.globalCoords.x % 16)) + Math.abs((state.storageLockerCoords.y % 16) - (state.globalCoords.y % 16))) * 5)}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
                   {state.globalCoords.x % 16 === 8 && state.globalCoords.y % 16 === 8 ? (
                     <div className="space-y-4">
-                      <div className="p-3 border border-emerald-500/30 bg-emerald-500/5 mb-4">
-                        <p className="text-xs text-emerald-400 font-bold mb-1 uppercase tracking-tighter">Docking Successful</p>
-                        <p className="text-[10px] opacity-70 italic">Welcome to {currentSector.name}. All systems green.</p>
-                      </div>
+                      {(() => {
+                        const basePrice = 16;
+                        const weaponsCost = Math.floor(basePrice * Math.pow(2, state.upgrades.weapons));
+                        const shieldsCost = Math.floor(basePrice * Math.pow(2, state.upgrades.shields));
+                        const isWeaponsOffline = state.power <= 0;
+                        const isShieldsDown = state.defense <= 0;
+                        const needsWarning = isWeaponsOffline || isShieldsDown;
+                        
+                        if (needsWarning) {
+                          const canAffordAny = (isWeaponsOffline && state.credits >= weaponsCost) || (isShieldsDown && state.credits >= shieldsCost);
+                          return (
+                            <div className="p-3 border border-yellow-500/30 bg-yellow-500/5 mb-4">
+                              <p className="text-xs text-yellow-400 font-bold mb-1 uppercase tracking-tighter">Warning: Systems Compromised</p>
+                              <div className="text-[10px] opacity-70 italic space-y-1">
+                                {isWeaponsOffline && <p>Weapons systems offline.</p>}
+                                {isShieldsDown && <p>Shields down.</p>}
+                                <p className="mt-2 text-white not-italic">
+                                  {canAffordAny 
+                                    ? "Recommendation: Use your credits to upgrade your systems immediately."
+                                    : "Recommendation: Travel to the Asteroid Belt to mine Nocturnium and sell it for upgrades."}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="p-3 border border-emerald-500/30 bg-emerald-500/5 mb-4">
+                            <p className="text-xs text-emerald-400 font-bold mb-1 uppercase tracking-tighter">Docking Successful</p>
+                            <p className="text-[10px] opacity-70 italic">Welcome to {currentSector.name}. All systems green.</p>
+                          </div>
+                        );
+                      })()}
 
                       <div className="pixel-border bg-black/80 p-4 space-y-4">
                         <div className="flex justify-between items-center border-b border-white/30 pb-2">
@@ -1041,11 +1232,11 @@ export default function App() {
                           </div>
                         </div>
 
-                        {state.inventory.filter(i => !i.isSpecial).length > 0 && (
+                        {state.inventory.length > 0 && (
                           <div className="space-y-2">
                             <p className="text-[10px] opacity-50 uppercase">Inventory Items</p>
                             <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
-                              {state.inventory.map((item, i) => !item.isSpecial && (
+                              {state.inventory.map((item, i) => (
                                 <div key={i} className="flex justify-between items-center p-1 border border-white/10 text-[10px]">
                                   <span className="truncate flex-1 mr-2">{item.name}</span>
                                   <button 
@@ -1060,13 +1251,6 @@ export default function App() {
                           </div>
                         )}
 
-                        {state.inventory.some(i => i.isSpecial) && (
-                          <div className="p-2 border border-blue-500/30 bg-blue-500/5">
-                            <p className="text-[8px] text-blue-400 uppercase font-bold">Special Cargo Detected</p>
-                            <p className="text-[8px] opacity-50">Midnight Song modifiers cannot be sold at standard hubs. Trade them with other vessels.</p>
-                          </div>
-                        )}
-
                         <button 
                           onClick={sellAll} 
                           disabled={state.nocturnium === 0 && state.inventory.length === 0}
@@ -1077,18 +1261,51 @@ export default function App() {
                       </div>
                       
                       <div className="grid grid-cols-1 gap-2 mt-4">
+                        <p className="text-xs border-b border-white pb-1">SUPPLIES</p>
+                        <div className="p-2 border border-white/30 flex justify-between items-center">
+                          <div className="flex flex-col">
+                            <span className="text-sm">Duct Tape</span>
+                            <span className="text-[10px] opacity-50 italic">Emergency Shield Patch (+1 Def)</span>
+                          </div>
+                          <button 
+                            onClick={buyDuctTape}
+                            className="pixel-button text-xs py-1 px-4"
+                          >
+                            BUY (64 CR)
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2 mt-4">
                         <p className="text-xs border-b border-white pb-1">UPGRADES</p>
-                        {(['cargo', 'shields', 'weapons'] as const).map(type => {
+                        {(['cargo', 'shields', 'weapons', 'storage'] as const).map(type => {
                           const basePrice = 16;
-                          const count = state.upgrades[type];
+                          const count = state.upgrades[type] || 0;
                           const cost = Math.floor(basePrice * Math.pow(2, count));
                           const isDamaged = state.damagedUpgrades[type];
                           const repairCost = Math.floor(Math.floor(basePrice * Math.pow(2, count - 1)) * 0.2);
 
+                          const displayNames = {
+                            cargo: 'Ship Cargo Space',
+                            shields: 'Shields',
+                            weapons: 'Weapons',
+                            storage: 'Locker Storage'
+                          };
+
+                          const capacityInfo = {
+                            cargo: `${state.cargoCapacity} Slots`,
+                            shields: `+${state.upgrades.shields} DEF`,
+                            weapons: `+${state.upgrades.weapons} PWR`,
+                            storage: `${state.storageCapacity} Slots`
+                          };
+
                           return (
                             <div key={type} className="flex flex-col gap-2 p-2 border border-white/30">
                               <div className="flex justify-between items-center">
-                                <span className="capitalize">{type} (LVL {state.upgrades[type]})</span>
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-bold uppercase tracking-tighter">{displayNames[type]}</span>
+                                  <span className="text-[10px] opacity-50">LVL {count} | {capacityInfo[type]}</span>
+                                </div>
                                 {isDamaged && <span className="text-red-500 text-[10px] animate-pulse">DAMAGED</span>}
                               </div>
                               <div className="flex gap-2">
@@ -1141,7 +1358,8 @@ export default function App() {
                     </div>
                   )}
                 </div>
-              )}
+              </div>
+            )}
 
               {currentSector?.type === 'Asteroid Belt' && (
                 <div className="p-6 border border-yellow-500/20 bg-yellow-500/5 flex flex-col items-center gap-4 text-center">
@@ -1160,7 +1378,7 @@ export default function App() {
 
           {/* Log */}
           <div className="h-40 border-t-2 border-white p-4 bg-black/80 overflow-y-auto text-[10px] space-y-1">
-            {log.map((m, i) => (
+            {state.log.map((m, i) => (
               <div key={i} className={i === 0 ? 'text-white' : 'opacity-40'}>
                 {`> ${m}`}
               </div>
@@ -1221,14 +1439,24 @@ export default function App() {
                     <span>NOCTURNIUM ORE</span>
                     <span className="text-[10px] opacity-50">{state.nocturnium} UNITS</span>
                   </div>
-                  {state.nocturnium > 0 && (
-                    <button 
-                      onClick={() => setState(prev => prev ? ({ ...prev, nocturnium: prev.nocturnium - 1 }) : null)}
-                      className="text-red-500 hover:bg-red-500 hover:text-white p-1 text-[10px] border border-red-500/30"
-                    >
-                      DROP 1
-                    </button>
-                  )}
+                  <div className="flex gap-2">
+                    {state.nocturnium > 0 && (
+                      <>
+                        <button 
+                          onClick={() => setState(prev => prev ? ({ ...prev, nocturnium: prev.nocturnium - 1 }) : null)}
+                          className="text-red-500 hover:bg-red-500 hover:text-white px-2 py-1 text-[8px] border border-red-500/30 uppercase tracking-tighter"
+                        >
+                          JETTISON 1
+                        </button>
+                        <button 
+                          onClick={() => setState(prev => prev ? ({ ...prev, nocturnium: 0 }) : null)}
+                          className="text-red-500 hover:bg-red-500 hover:text-white px-2 py-1 text-[8px] border border-red-500/30 uppercase tracking-tighter"
+                        >
+                          JETTISON ALL
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-1 gap-2">
@@ -1264,9 +1492,10 @@ export default function App() {
                           onClick={() => {
                             setState(prev => prev ? ({ ...prev, inventory: prev.inventory.filter((_, idx) => idx !== i) }) : null);
                           }}
-                          className="text-red-500 hover:bg-red-500 hover:text-white p-1"
+                          className="text-red-500 hover:bg-red-500 hover:text-white p-1 flex items-center gap-1 text-[8px] border border-red-500/30 px-2 uppercase"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={12} />
+                          JETTISON
                         </button>
                       </div>
                     );
@@ -1278,6 +1507,85 @@ export default function App() {
           </motion.div>
         )}
 
+        {showStorage && (
+          <motion.div 
+            key="storage-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-black/90 backdrop-blur-sm"
+          >
+            <div className="w-full max-w-2xl pixel-border bg-black p-6 flex flex-col max-h-[80vh]">
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-col">
+                  <h3 className="text-xl font-bold tracking-widest uppercase">Storage Locker</h3>
+                  <span className="text-[10px] opacity-50">SECURE FACILITY - {state.storageLocker.length} / {state.storageCapacity} SLOTS</span>
+                </div>
+                <button onClick={() => setShowStorage(false)} className="pixel-button py-1 px-3">CLOSE</button>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-6 flex-1 overflow-hidden">
+                {/* Ship Cargo */}
+                <div className="flex flex-col overflow-hidden">
+                  <p className="text-[10px] opacity-50 uppercase mb-2">Ship Cargo ({state.inventory.length} / {state.cargoCapacity})</p>
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                    {state.inventory.map((item, i) => (
+                      <div key={i} className="flex justify-between items-center p-2 border border-white/10 text-[10px]">
+                        <span className="truncate flex-1 mr-2">{item.name}</span>
+                        <button 
+                          onClick={() => {
+                            if (state.storageLocker.length < state.storageCapacity) {
+                              setState(prev => {
+                                if (!prev) return prev;
+                                const nextInventory = prev.inventory.filter((_, idx) => idx !== i);
+                                const nextStorage = [...prev.storageLocker, item];
+                                return { ...prev, inventory: nextInventory, storageLocker: nextStorage };
+                              });
+                            }
+                          }}
+                          disabled={state.storageLocker.length >= state.storageCapacity}
+                          className="pixel-button px-2 py-1 disabled:opacity-30"
+                        >
+                          STORE
+                        </button>
+                      </div>
+                    ))}
+                    {state.inventory.length === 0 && <p className="text-center py-4 opacity-30 italic text-[10px]">Cargo empty.</p>}
+                  </div>
+                </div>
+
+                {/* Locker Contents */}
+                <div className="flex flex-col overflow-hidden">
+                  <p className="text-[10px] opacity-50 uppercase mb-2">Locker Contents ({state.storageLocker.length} / {state.storageCapacity})</p>
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                    {state.storageLocker.map((item, i) => (
+                      <div key={i} className="flex justify-between items-center p-2 border border-blue-500/20 text-[10px]">
+                        <span className="truncate flex-1 mr-2">{item.name}</span>
+                        <button 
+                          onClick={() => {
+                            if (state.inventory.length + state.nocturnium < state.cargoCapacity) {
+                              setState(prev => {
+                                if (!prev) return prev;
+                                const nextStorage = prev.storageLocker.filter((_, idx) => idx !== i);
+                                const nextInventory = [...prev.inventory, item];
+                                return { ...prev, inventory: nextInventory, storageLocker: nextStorage };
+                              });
+                            }
+                          }}
+                          disabled={state.inventory.length + state.nocturnium >= state.cargoCapacity}
+                          className="pixel-button px-2 py-1 disabled:opacity-30"
+                        >
+                          RETRIEVE
+                        </button>
+                      </div>
+                    ))}
+                    {state.storageLocker.length === 0 && <p className="text-center py-4 opacity-30 italic text-[10px]">Locker empty.</p>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
         {discovery && (
           <motion.div 
             key="discovery-modal"
@@ -1368,7 +1676,7 @@ export default function App() {
                 <>
                   <div className="space-y-2">
                     <h3 className="text-red-500 text-sm tracking-widest animate-pulse">
-                      {encounter.isAmbush ? 'AMBUSH DETECTED' : 'ENCOUNTER DETECTED'}
+                      {encounter.isAmbush ? 'AMBUSH DETECTED' : 'SHIP DETECTED'}
                     </h3>
                     <h2 className="text-2xl font-bold uppercase">{encounter.name}</h2>
                     <p className="text-xs opacity-50">
@@ -1376,34 +1684,48 @@ export default function App() {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 py-4 border-y border-white/20">
-                    <div className="space-y-2 border-r border-white/10">
-                      <p className="text-[8px] opacity-50 uppercase">Your Stats</p>
-                      <div className="flex justify-between px-2">
-                        <span className="text-[10px]">PWR</span>
-                        <span className="text-sm font-bold">{Math.floor(totalPower)}</span>
-                      </div>
-                      <div className="flex justify-between px-2">
-                        <span className="text-[10px]">DEF</span>
-                        <span className="text-sm font-bold">{Math.floor(totalDefense)}</span>
-                      </div>
+                <div className="grid grid-cols-2 gap-8 border-y border-white/10 py-6">
+                  <div className="text-left space-y-2">
+                    <div className="text-[10px] uppercase opacity-50 font-mono">Your Ship</div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[10px] uppercase font-mono opacity-50">Power</span>
+                      <span className="text-xl font-mono">{Math.floor(totalPower)}</span>
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-[8px] opacity-50 uppercase">Enemy Stats</p>
-                      <div className="flex justify-between px-2">
-                        <span className="text-[10px]">PWR</span>
-                        <span className="text-sm font-bold text-red-500">{Math.floor(encounter.power)}</span>
-                      </div>
-                      <div className="flex justify-between px-2">
-                        <span className="text-[10px]">DEF</span>
-                        <span className="text-sm font-bold text-red-500">{Math.floor(encounter.defense)}</span>
-                      </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[10px] uppercase font-mono opacity-50">Shields</span>
+                      <span className="text-xl font-mono">
+                        {Math.floor(state.defense)}
+                        {encounter.tempDefense ? (
+                          <span className="text-sm opacity-50 ml-1">+{encounter.tempDefense}</span>
+                        ) : null}
+                      </span>
                     </div>
                   </div>
+                  <div className="text-right space-y-2">
+                    <div className="text-[10px] uppercase opacity-50 font-mono">Other Ship</div>
+                    <div className="flex items-baseline gap-2 justify-end">
+                      <span className="text-[10px] uppercase font-mono opacity-50">Power</span>
+                      <span className="text-xl font-mono">{Math.floor(encounter.power)}</span>
+                    </div>
+                    <div className="flex items-baseline gap-2 justify-end">
+                      <span className="text-[10px] uppercase font-mono opacity-50">Shields</span>
+                      <span className="text-xl font-mono">{Math.floor(encounter.defense)}</span>
+                    </div>
+                  </div>
+                </div>
 
-                  {encounter.clashResult && (
+                {encounter.status === 'waiting' && !encounter.usedDuctTape && state.inventory.some(i => i.name === 'Duct Tape') && (
+                  <button
+                    onClick={useDuctTape}
+                    className="pixel-button w-full py-2 text-[10px] uppercase tracking-widest font-bold"
+                  >
+                    Apply Duct Tape (DEFENSE +1)
+                  </button>
+                )}
+
+                  {encounter.exchangeResult && (
                     <div className="p-3 bg-white/5 border border-white/10 text-[10px] italic opacity-80">
-                      {encounter.clashResult}
+                      {encounter.exchangeResult}
                     </div>
                   )}
 
@@ -1416,17 +1738,8 @@ export default function App() {
                           className="pixel-button flex items-center justify-center gap-2 group disabled:opacity-30"
                         >
                           <Crosshair size={18} className={totalPower >= 1 ? "group-hover:animate-spin" : ""} />
-                          <span>EXTORT (ATTACK)</span>
+                          <span>ATTACK</span>
                         </button>
-                        {state.inventory.some(i => i.isSpecial) && (
-                          <button 
-                            onClick={() => handleEncounterAction('trade')} 
-                            className="pixel-button flex items-center justify-center gap-2 text-emerald-400 border-emerald-500/50"
-                          >
-                            <TrendingUp size={18} />
-                            <span>OFFER TRADE</span>
-                          </button>
-                        )}
                         {totalPower < 1 && (
                           <p className="text-[10px] text-red-500 animate-pulse">WEAPONS OFFLINE: ACQUIRE UPGRADES TO ATTACK</p>
                         )}
@@ -1465,49 +1778,6 @@ export default function App() {
                           <span>FLY AWAY (GUARANTEED)</span>
                         </button>
                       </>
-                    )}
-
-                    {encounter.status === 'trading' && (
-                      <div className="space-y-6">
-                        <div className="p-4 border border-emerald-500/30 bg-emerald-500/5 space-y-2">
-                          <p className="text-xs text-emerald-400 font-bold uppercase">Trading: {encounter.offerItem?.name}</p>
-                          <p className="text-[10px] opacity-70">The {encounter.name} has {encounter.credits} credits available.</p>
-                        </div>
-                        
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs">YOUR OFFER:</span>
-                            <span className="text-xl font-bold text-emerald-400">{encounter.offerAmount} CR</span>
-                          </div>
-                          <input 
-                            type="range" 
-                            min="1" 
-                            max={encounter.credits} 
-                            value={encounter.offerAmount} 
-                            onChange={(e) => setEncounter(prev => prev ? { ...prev, offerAmount: parseInt(e.target.value) } : null)}
-                            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                          />
-                          <div className="flex justify-between text-[8px] opacity-50">
-                            <span>1 CR</span>
-                            <span>{encounter.credits} CR</span>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <button 
-                            onClick={() => handleEncounterAction('confirmTrade')} 
-                            className="pixel-button bg-emerald-600 text-white border-emerald-400"
-                          >
-                            CONFIRM OFFER
-                          </button>
-                          <button 
-                            onClick={() => setEncounter(prev => prev ? { ...prev, status: 'waiting' } : null)} 
-                            className="pixel-button"
-                          >
-                            CANCEL
-                          </button>
-                        </div>
-                      </div>
                     )}
                   </div>
                 </>

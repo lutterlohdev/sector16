@@ -11,15 +11,16 @@ The entire game state is persisted in `localStorage` under the key `sector16_sav
 - `shipName`: String. User-defined.
 - `credits`: Number. Starting value: 50.
 - `nocturnium`: Number. Current ore count.
-- `cargoCapacity`: Number. Starting value: 10.
+- `cargoCapacity`: Number. Starting value: 8.
 - `power`: Number. Base attack stat. Starting value: 1.
 - `defense`: Number. Base defense stat. Starting value: 1.
 - `inventory`: Array of `Item` objects.
 - `globalCoords`: Object `{ x: number, y: number }`. Range: 0-63. Starting value: (40, 24).
 - `lastJumpTime`: Timestamp.
-- `upgrades`: Object `{ cargo: number, shields: number, weapons: number }`. Starting value: all 1.
+- `upgrades`: Object `{ cargo: number, shields: number, weapons: number }`. Starting value: `{ cargo: 0, shields: 1, weapons: 1 }`.
 - `damagedUpgrades`: Object `{ cargo: boolean, shields: boolean, weapons: boolean }`.
 - `moveCount`: Number. Total steps taken (used for rotational rarity).
+- `log`: Array of Strings. Persisted game events.
 
 ### 1.2 Item Structure
 - `id`: Unique identifier.
@@ -60,16 +61,16 @@ The map is a 4x4 grid of 16 sectors.
 - **Input**: Arrow keys.
 - **Boundary**: Clamped between 0 and 63.
 - **Encounter Chance (on move)**:
-    - The Void: 10%
-    - Ruin Sector: 20%
     - Trade Hub: 0%
+    - Asteroid Belt: 0%
     - Others: 5%
+- **Ambush Chance**: 40% for any encounter triggered.
 
 ### 2.4 Jump Drive
 - **Duration**: `Math.min(ManhattanDistance * 2000, 8000)` milliseconds.
 - **Encounter Chance (on jump)**:
-    - Ruin Sector: 80%
-    - The Void: 30%
+    - Trade Hub: 0%
+    - Others: 5%
 
 ---
 
@@ -91,22 +92,31 @@ Items are found based on a "Rotational Rarity" system.
     - Ship Graveyard: 4x
     - Ruin Sector: 2x
     - Trade Hub: 0x
+    - Asteroid Belt: 0x
     - Others: 1x
 - **Roll**: `Math.random() * baseOdds < successThreshold`.
 
 ---
 
-## 4. Combat Engine (Dice Clash)
+## 4. Combat Engine (Dice Exchange)
 
 ### 4.1 Stats & Dice
 - **Power (Offense)**: Determines attack dice count. `DiceCount = Math.min(Math.floor(power), 3)`.
 - **Defense**: Determines defense dice count. `DiceCount = Math.min(Math.floor(defense), 2)`.
 
 ### 4.2 NPC Scaling
-- **Power/Defense**: `PlayerStat + (Math.floor(Math.random() * 3) - 1)` (Range: -1 to +1). Minimum 1.
-- **Credits**: `PlayerCredits * (1 + (Math.random() * 1.0 - 0.5))` (Range: 50% to 150% of player credits).
+- **Power/Defense**:
+    - **Low Stats (<= 5)**: `PlayerStat + Variance`.
+        - Normal Sector: `+3 / -3`.
+        - Ruin Sector: `+5 / -1`.
+    - **High Stats (> 5)**: `[1, PlayerStat + Bonus]`.
+        - Normal Sector Bonus: `+3`.
+        - Ruin Sector Bonus: `+5`.
+    - Minimum: 1.
+- **Archetypes**: 20% Glass Cannon (1.5x Power, 0.5x Defense), 20% Tank (0.5x Power, 1.5x Defense), 60% Standard.
+- **Credits**: `(npcPower + npcDefense) * 8 * (0.7 to 1.3)` (Range: 70% to 130% of base value).
 
-### 4.3 Clash Logic
+### 4.3 Exchange Logic
 1. Both sides roll their dice (1-6).
 2. Dice are sorted descending.
 3. Compare pairs (Player[0] vs NPC[0], Player[1] vs NPC[1]).
@@ -115,35 +125,41 @@ Items are found based on a "Rotational Rarity" system.
 #### Player Attacking:
 - Player wins comparison: NPC loses 1 Defense, Player gains 1 Power.
 - NPC wins comparison: Player loses 1 Power.
-- **Victory**: If NPC Defense reaches 0. Player gains NPC Credits + 30% chance for salvage item (Combat Bonus: 2x multiplier).
-- **Failure**: If Player wins 0 comparisons, the enemy ship successfully defends itself and flies away. Player loses 1 Power. If Power reaches 0, the player cannot initiate attacks until they upgrade weapons.
+- **Warp Out**: 10% chance for other ship to flee after the initial attack.
+- **Victory**: If NPC Defense reaches 0. Player gains NPC Credits + salvage chance + random Nocturnium loot.
+    - **Salvage Chance**: 80% in Ruin Sector, 30% elsewhere.
+    - **Nocturnium Loot**: Randomly collect up to 8 units of Nocturnium Ore (if cargo space allows).
+    - **Salvage Rarity**: `Math.random() * (itemValue / 4) < 2`.
+- **Failure**: If Player wins 0 comparisons, the other ship successfully defends itself and flies away. Player loses 1 Power.
 
 #### Player Defending:
 - NPC wins comparison: Player loses 1 Defense.
-- Player wins comparison: NPC loses 1 Power.
-- **Survival**: If NPC Power reaches 0. No rewards.
+- Player wins comparison: Player gains the "Counter-Attack" advantage (can Attack Back or Fly Away).
+- **Survival**: If the other ship disengages (random chance after failed defense or split decision).
 - **Defeat**: If Player Defense reaches 0.
 
 ### 4.4 Defeat Consequences
 - Teleport to nearest Trade Hub (usually [40, 24] or the hub center).
 - Credits: 90% loss (`credits = Math.floor(credits * 0.1)`).
-- Stats: Power/Defense reset to 1.
-- Upgrades: All levels reset to 1.
-- Cargo: All Nocturnium lost. All items lost **unless** `value >= 256`.
+- Stats: Power/Defense reset to 0.
+- Upgrades: All levels reset to 0 (Capacity resets to 8).
+- Cargo: If inventory + nocturnium exceeds the new capacity (8), random items/ore are lost until it fits.
 
 ---
 
 ## 5. Progression & Upgrades
 
 ### 5.1 Upgrade Types
-- **Cargo**: +5 capacity per level.
+- **Cargo**: +8 capacity per level.
 - **Shields**: +1 Defense per level.
 - **Weapons**: +1 Power per level.
 
 ### 5.2 Cost Scaling
-- **Base Price**: 50 CR for all upgrades.
-- **Cost**: `Math.floor(BasePrice * 1.6 ^ (CurrentLevel - 1))`.
-- **Initial Upgrade (Level 1 to 2)**: 50 CR.
+- **Base Price**: 16 CR for all upgrades.
+- **Cost**: `Math.floor(BasePrice * 2 ^ CurrentLevel)`.
+- **Initial Upgrade**:
+    - Cargo (0 to 1): 16 CR.
+    - Shields/Weapons (1 to 2): 32 CR.
 
 ### 5.3 System Damage (Nebula)
 - **Trigger**: 20% chance per jump into a Nebula.
@@ -167,7 +183,7 @@ Items are found based on a "Rotational Rarity" system.
 
 ### 6.3 Modals & Overlays
 - **Jump Overlay**: Full-screen black overlay with a progress bar and a "starfield" animation (moving white pixels).
-- **Encounter Modal**: Displays "Your Stats" vs "Enemy Stats" with dice counts. Includes a "Clash Result" text area for roll history.
+- **Encounter Modal**: Displays "Your Stats" vs "Enemy Stats" with dice counts. Includes an "Exchange Result" text area for roll history.
 - **Log System**: Bottom-right area showing the last 10 events. Newest events at the top.
 
 ### 6.4 Trade Terminal
