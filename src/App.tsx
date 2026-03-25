@@ -21,7 +21,9 @@ import {
   AlertTriangle,
   Crosshair,
   Archive,
-  Wand2
+  Wand2,
+  Check,
+  X
 } from 'lucide-react';
 import { GameState, Sector, SectorType, Item } from './types';
 import { SECTOR_DISTRIBUTION, HUB_NAMES, SPACE_JUNK, NPC_NAMES_PREFIX, NPC_NAMES_SUFFIX } from './constants';
@@ -55,9 +57,11 @@ const INITIAL_STATE: GameState = {
   storageLocker: [],
   storageCapacity: 8,
   storageLockerCoords: { x: 0, y: 0 }, // Will be set on first load
+  upgradeCenterCoords: { x: 0, y: 0 }, // Will be set on first load
   map: [],
   hasMetWizard: false,
   hasCloakingSpell: false,
+  hasMinerUpgrade: false,
   wizardCoords: null,
 };
 
@@ -107,6 +111,7 @@ export default function App() {
   const [jumpProgress, setJumpProgress] = useState(0);
   const [showInventory, setShowInventory] = useState(false);
   const [showStorage, setShowStorage] = useState(false);
+  const [showUpgradeCenter, setShowUpgradeCenter] = useState(false);
   const [wizardEncounter, setWizardEncounter] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [discovery, setDiscovery] = useState<{
@@ -145,6 +150,7 @@ export default function App() {
       if (e.key === 'ArrowRight') dx = 1;
 
       if (dx !== 0 || dy !== 0) {
+        if (showUpgradeCenter) return;
         moveGlobal(dx, dy);
       }
     };
@@ -175,14 +181,14 @@ export default function App() {
           nextLog = [`RADIATION HAZARD: SHIELDS systems damaged!`, ...nextLog].slice(0, 10);
           setTimeout(() => setDiscovery({
             title: "RADIATION HAZARD",
-            message: "Intense cosmic radiation has compromised your shield emitters! Systems are offline until repaired at a Trade Hub.",
+            message: "Intense cosmic radiation has compromised your shield emitters! Defense dice are limited to 1 until repaired at a Trade Hub.",
             isHazard: true
           }), 0);
         }
       }
 
       // Check for encounter chance on move - NO encounters in Trade Hubs or Asteroid Belts
-      let encounterChance = (sector.type === 'Trade Hub' || sector.type === 'Asteroid Belt' || prev.hasCloakingSpell) ? 0 : 0.05;
+      let encounterChance = (sector.type === 'Trade Hub' || sector.type === 'Asteroid Belt') ? 0 : 0.05;
 
       if (encounterChance > 0 && Math.random() < encounterChance) {
         setTimeout(() => triggerEncounter(sector.type === 'Ruin Sector'), 0);
@@ -204,7 +210,8 @@ export default function App() {
 
       // Mining Encounter (Asteroid Belt only)
       if (sector.type === 'Asteroid Belt' && Math.random() < 0.1) {
-        const yield_ = Math.floor(Math.random() * 3) + 1;
+        const bonus = prev.hasMinerUpgrade ? 2 : 0;
+        const yield_ = Math.floor(Math.random() * 3) + 1 + bonus;
         
         setTimeout(() => setDiscovery({
           title: "ASTEROID ENCOUNTER",
@@ -298,6 +305,22 @@ export default function App() {
           }
         }
 
+        // Generate upgrade center if not set
+        if (nextState.upgradeCenterCoords.x === 0 && nextState.upgradeCenterCoords.y === 0) {
+          const hub = nextState.map.find(s => s.name === "The Nocturnal Hub");
+          if (hub) {
+            let rx, ry;
+            do {
+              rx = Math.floor(Math.random() * 16);
+              ry = Math.floor(Math.random() * 16);
+            } while (rx === 8 && ry === 8 || (hub.coords.c * 16 + rx === nextState.storageLockerCoords.x && hub.coords.r * 16 + ry === nextState.storageLockerCoords.y));
+            nextState.upgradeCenterCoords = {
+              x: hub.coords.c * 16 + rx,
+              y: hub.coords.r * 16 + ry
+            };
+          }
+        }
+
         // Generate wizard if not set
         if (!nextState.wizardCoords && !nextState.hasMetWizard) {
           const nebulas = nextState.map.filter(s => s.type === 'Nebula');
@@ -327,6 +350,19 @@ export default function App() {
         nextState.storageLockerCoords = {
           x: hub.coords.c * 16 + rx,
           y: hub.coords.r * 16 + ry
+        };
+      }
+
+      const hub2 = nextState.map.find(s => s.name === "The Nocturnal Hub");
+      if (hub2) {
+        let rx, ry;
+        do {
+          rx = Math.floor(Math.random() * 16);
+          ry = Math.floor(Math.random() * 16);
+        } while (rx === 8 && ry === 8 || (hub2.coords.c * 16 + rx === nextState.storageLockerCoords.x && hub2.coords.r * 16 + ry === nextState.storageLockerCoords.y));
+        nextState.upgradeCenterCoords = {
+          x: hub2.coords.c * 16 + rx,
+          y: hub2.coords.r * 16 + ry
         };
       }
 
@@ -373,6 +409,19 @@ export default function App() {
       };
     }
 
+    const hub2 = nextState.map.find(s => s.name === "The Nocturnal Hub");
+    if (hub2) {
+      let rx, ry;
+      do {
+        rx = Math.floor(Math.random() * 16);
+        ry = Math.floor(Math.random() * 16);
+      } while (rx === 8 && ry === 8 || (hub2.coords.c * 16 + rx === nextState.storageLockerCoords.x && hub2.coords.r * 16 + ry === nextState.storageLockerCoords.y));
+      nextState.upgradeCenterCoords = {
+        x: hub2.coords.c * 16 + rx,
+        y: hub2.coords.r * 16 + ry
+      };
+    }
+
     const nebulas = nextState.map.filter(s => s.type === 'Nebula');
     if (nebulas.length > 0) {
       const nebula = nebulas[Math.floor(Math.random() * nebulas.length)];
@@ -397,6 +446,12 @@ export default function App() {
     return state.globalCoords.x === state.storageLockerCoords.x && 
            state.globalCoords.y === state.storageLockerCoords.y;
   }, [state?.globalCoords, state?.storageLockerCoords]);
+
+  const isAtUpgradeCenter = useMemo(() => {
+    if (!state) return false;
+    return state.globalCoords.x === state.upgradeCenterCoords.x && 
+           state.globalCoords.y === state.upgradeCenterCoords.y;
+  }, [state?.globalCoords, state?.upgradeCenterCoords]);
 
   const totalPower = useMemo(() => {
     if (!state) return 0;
@@ -464,11 +519,13 @@ export default function App() {
     });
 
     if (damagedTarget) {
-      addLog(`WARNING: Nebula radiation damaged ${damagedTarget} systems!`);
+      const systemName = damagedTarget.charAt(0).toUpperCase() + damagedTarget.slice(1);
+      const penalty = damagedTarget === 'shields' ? 'Defense dice limited to 1' : (damagedTarget === 'weapons' ? 'Attack dice limited to 1' : 'Cargo access restricted');
+      addLog(`WARNING: Nebula radiation compromised ${damagedTarget} systems! ${penalty}.`);
     }
 
     // Random Encounter
-    const encounterChance = (newSector.type === 'Trade Hub' || state.hasCloakingSpell) ? 0 : 0.05;
+    const encounterChance = (newSector.type === 'Trade Hub') ? 0 : 0.05;
     if (encounterChance > 0 && Math.random() < encounterChance) {
       triggerEncounter(newSector.type === 'Ruin Sector');
     }
@@ -746,9 +803,9 @@ export default function App() {
     }
 
     if (action === 'avoid') {
-      const chance = !encounter.isAmbush ? 1.0 : (encounter.type === 'ruin' ? 0.1 : 0.8);
+      const chance = state.hasCloakingSpell ? 1.0 : (!encounter.isAmbush ? 1.0 : (encounter.type === 'ruin' ? 0.1 : 0.8));
       if (Math.random() < chance) {
-        addLog("Successfully avoided the encounter.");
+        addLog(state.hasCloakingSpell ? "Cloaking Spell active: Successfully avoided the encounter." : "Successfully avoided the encounter.");
         setEncounter(null);
       } else {
         if (encounter.isAmbush) {
@@ -786,7 +843,10 @@ export default function App() {
       }
 
       // Exchange: Power dice vs Defense dice
-      const playerDiceCount = Math.min(Math.floor(totalPower), 3);
+      let playerDiceCount = Math.min(Math.floor(totalPower), 3);
+      if (state.damagedUpgrades.weapons && playerDiceCount > 1) {
+        playerDiceCount = 1;
+      }
       const npcDiceCount = Math.min(Math.floor(encounter.defense), 2);
       
       const pDice = rollDice(playerDiceCount);
@@ -886,7 +946,10 @@ export default function App() {
     if (action === 'defend') {
       // Exchange: NPC Power dice vs Player Defense dice
       const npcDiceCount = Math.min(Math.floor(encounter.power), 3);
-      const playerDiceCount = Math.min(Math.floor(totalDefense + (encounter.tempDefense || 0)), 2);
+      let playerDiceCount = Math.min(Math.floor(totalDefense + (encounter.tempDefense || 0)), 2);
+      if (state.damagedUpgrades.shields && playerDiceCount > 1) {
+        playerDiceCount = 1;
+      }
       
       const nDice = rollDice(npcDiceCount);
       const pDice = rollDice(playerDiceCount);
@@ -1140,6 +1203,10 @@ export default function App() {
                         <Archive className="text-blue-400 z-10 animate-pulse" size={16} />
                       )}
 
+                      {state.upgradeCenterCoords.x === x && state.upgradeCenterCoords.y === y && (
+                        <TrendingUp className="text-green-400 z-10 animate-pulse" size={16} />
+                      )}
+
                       {state.wizardCoords && state.wizardCoords.x === x && state.wizardCoords.y === y && !state.hasMetWizard && (
                         <Wand2 className="text-purple-400 z-10 animate-bounce" size={16} />
                       )}
@@ -1245,6 +1312,55 @@ export default function App() {
                     </div>
                   )}
 
+                  {currentSector?.name === "The Nocturnal Hub" && (
+                    <div className="space-y-4 mb-8">
+                      {isAtUpgradeCenter ? (
+                        <div className="p-4 border border-green-500/30 bg-green-500/5 space-y-4">
+                          <div className="flex justify-between items-center border-b border-green-500/30 pb-2">
+                            <p className="text-sm text-green-400 font-bold uppercase tracking-widest">Upgrade Center Access</p>
+                            <TrendingUp size={16} className="text-green-400" />
+                          </div>
+                          <p className="text-[10px] opacity-70 italic">
+                            A specialized facility for permanent ship enhancements.
+                          </p>
+                          <button 
+                            onClick={() => setShowUpgradeCenter(true)}
+                            className="w-full pixel-button py-2 text-xs bg-green-500/20 border-green-500/50 hover:bg-green-500/40"
+                          >
+                            ACCESS UPGRADE CENTER
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="p-6 border border-green-500/20 bg-green-500/5 flex flex-col items-center gap-4 text-center">
+                          <div className="relative">
+                            <TrendingUp className="text-green-400 animate-pulse" size={48} />
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-ping" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-green-400 font-bold uppercase tracking-widest">Upgrade Center Detected</p>
+                            <p className="text-xs opacity-60 mt-2 leading-relaxed">
+                              Advanced engineering signature found at remote coordinates.<br/>
+                              Navigate to <span className="text-white font-bold">[{state.upgradeCenterCoords.x % 16}, {state.upgradeCenterCoords.y % 16}]</span> within this sector to access the upgrade center.
+                            </p>
+                          </div>
+                          <div className="flex flex-col gap-1 w-full max-w-[200px]">
+                            <div className="flex justify-between text-[10px] opacity-50 uppercase">
+                              <span>Distance</span>
+                              <span>{Math.abs((state.upgradeCenterCoords.x % 16) - (state.globalCoords.x % 16)) + Math.abs((state.upgradeCenterCoords.y % 16) - (state.globalCoords.y % 16))} Units</span>
+                            </div>
+                            <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                              <motion.div 
+                                className="h-full bg-green-500"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${Math.max(0, 100 - (Math.abs((state.upgradeCenterCoords.x % 16) - (state.globalCoords.x % 16)) + Math.abs((state.upgradeCenterCoords.y % 16) - (state.globalCoords.y % 16))) * 5)}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="space-y-4">
                   {state.globalCoords.x % 16 === 8 && state.globalCoords.y % 16 === 8 ? (
                     <div className="space-y-4">
@@ -1254,16 +1370,18 @@ export default function App() {
                         const shieldsCost = Math.floor(basePrice * Math.pow(2, state.upgrades.shields));
                         const isWeaponsOffline = state.power <= 0;
                         const isShieldsDown = state.defense <= 0;
-                        const needsWarning = isWeaponsOffline || isShieldsDown;
+                        const needsWarning = isWeaponsOffline || isShieldsDown || state.damagedUpgrades.weapons || state.damagedUpgrades.shields;
                         
                         if (needsWarning) {
-                          const canAffordAny = (isWeaponsOffline && state.credits >= weaponsCost) || (isShieldsDown && state.credits >= shieldsCost);
+                          const canAffordAny = (isWeaponsOffline && state.credits >= weaponsCost) || (isShieldsDown && state.credits >= shieldsCost) || state.damagedUpgrades.weapons || state.damagedUpgrades.shields;
                           return (
                             <div className="p-3 border border-yellow-500/30 bg-yellow-500/5 mb-4">
                               <p className="text-xs text-yellow-400 font-bold mb-1 uppercase tracking-tighter">Warning: Systems Compromised</p>
                               <div className="text-[10px] opacity-70 italic space-y-1">
                                 {isWeaponsOffline && <p>Weapons systems offline.</p>}
+                                {state.damagedUpgrades.weapons && !isWeaponsOffline && <p className="text-yellow-400">Weapons compromised: Attack dice limited to 1.</p>}
                                 {isShieldsDown && <p>Shields down.</p>}
+                                {state.damagedUpgrades.shields && !isShieldsDown && <p className="text-yellow-400">Shields compromised: Defense dice limited to 1.</p>}
                                 <p className="mt-2 text-white not-italic">
                                   {canAffordAny 
                                     ? "Recommendation: Use your credits to upgrade your systems immediately."
@@ -1447,6 +1565,58 @@ export default function App() {
                     <p className="text-xs opacity-60 mt-2 leading-relaxed">
                       Move through the sector to locate rich mineral clusters.<br/>
                       Nocturnium extraction is automated upon discovery.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {currentSector?.type === 'The Void' && (
+                <div className="p-6 border border-gray-500/20 bg-gray-500/5 flex flex-col items-center gap-4 text-center">
+                  <Move className="text-gray-400 opacity-50" size={48} />
+                  <div>
+                    <p className="text-sm text-gray-400 font-bold uppercase tracking-widest">Void Sector</p>
+                    <p className="text-xs opacity-60 mt-2 leading-relaxed">
+                      Vast, empty space. Low probability of encounters.<br/>
+                      Ideal for safe passage between systems.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {currentSector?.type === 'Nebula' && (
+                <div className="p-6 border border-purple-500/20 bg-purple-500/5 flex flex-col items-center gap-4 text-center">
+                  <AlertTriangle className="text-purple-400 animate-pulse" size={48} />
+                  <div>
+                    <p className="text-sm text-purple-400 font-bold uppercase tracking-widest">Nebula Detected</p>
+                    <p className="text-xs opacity-60 mt-2 leading-relaxed">
+                      Hazardous cosmic clouds. High radiation levels can damage shields.<br/>
+                      Mysterious energy signatures reported in this area.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {currentSector?.type === 'Ruin Sector' && (
+                <div className="p-6 border border-red-500/20 bg-red-500/5 flex flex-col items-center gap-4 text-center">
+                  <Skull className="text-red-500 animate-pulse" size={48} />
+                  <div>
+                    <p className="text-sm text-red-500 font-bold uppercase tracking-widest">Ruin Sector Warning</p>
+                    <p className="text-xs opacity-60 mt-2 leading-relaxed">
+                      Ancient remains. High pirate activity detected.<br/>
+                      <span className="text-red-400 font-bold uppercase">Critical:</span> High risk of ambush and cargo looting.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {currentSector?.type === 'Ship Graveyard' && (
+                <div className="p-6 border border-blue-500/20 bg-blue-500/5 flex flex-col items-center gap-4 text-center">
+                  <Search className="text-blue-400 animate-pulse" size={48} />
+                  <div>
+                    <p className="text-sm text-blue-400 font-bold uppercase tracking-widest">Ship Graveyard</p>
+                    <p className="text-xs opacity-60 mt-2 leading-relaxed">
+                      Extensive debris fields. High probability of finding space junk.<br/>
+                      Scavengers often haunt these wreckage sites.
                     </p>
                   </div>
                 </div>
@@ -1667,6 +1837,119 @@ export default function App() {
                     ))}
                     {state.storageLocker.length === 0 && <p className="text-center py-4 opacity-30 italic text-[10px]">Locker empty.</p>}
                   </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+        {showUpgradeCenter && (
+          <motion.div 
+            key="upgrade-center-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-black/90 backdrop-blur-sm"
+          >
+            <div className="w-full max-w-2xl pixel-border bg-black p-6 flex flex-col max-h-[80vh]">
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-col">
+                  <h3 className="text-xl font-bold tracking-widest uppercase">Upgrade Center</h3>
+                  <span className="text-[10px] opacity-50">ADVANCED ENGINEERING FACILITY</span>
+                </div>
+                <button onClick={() => setShowUpgradeCenter(false)} className="pixel-button py-1 px-3">CLOSE</button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+                <div className="p-4 border border-green-500/30 bg-green-500/5 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="text-lg font-bold text-green-400 uppercase tracking-widest">Nocturnium Miner Upgrade</h4>
+                      <p className="text-xs opacity-70 mt-1">Permanently increases Nocturnium mining yield in Asteroid Belts by +2.</p>
+                    </div>
+                    {state.hasMinerUpgrade && (
+                      <span className="px-2 py-1 bg-green-500 text-black text-[10px] font-bold uppercase">Installed</span>
+                    )}
+                  </div>
+
+                  {!state.hasMinerUpgrade && (
+                    <div className="space-y-4 pt-4 border-t border-green-500/20">
+                      <p className="text-[10px] font-bold uppercase tracking-widest opacity-50">Required Components:</p>
+                      <div className="grid grid-cols-1 gap-2">
+                        {[
+                          { id: 17, name: "Functioning Relay" },
+                          { id: 23, name: "Heavy Duty Cables" },
+                          { id: 34, name: "Atmospheric Scrubber" }
+                        ].map(req => {
+                          const inInventory = state.inventory.some(item => item.id === req.id);
+                          const inStorage = state.storageLocker.some(item => item.id === req.id);
+                          const hasItem = inInventory || inStorage;
+
+                          return (
+                            <div key={req.id} className={`flex justify-between items-center p-2 border ${hasItem ? 'border-green-500/50 bg-green-500/10' : 'border-red-500/30 bg-red-500/5'}`}>
+                              <div className="flex items-center gap-2">
+                                {hasItem ? <Check size={12} className="text-green-500" /> : <X size={12} className="text-red-500" />}
+                                <span className={`text-xs ${hasItem ? 'text-white' : 'text-white/40'}`}>{req.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {inInventory && <span className="text-[8px] px-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 uppercase">In Cargo</span>}
+                                {inStorage && <span className="text-[8px] px-1 bg-purple-500/20 text-purple-400 border border-purple-500/30 uppercase">In Locker</span>}
+                                {!hasItem && <span className="text-[8px] px-1 bg-red-500/20 text-red-500 border border-red-500/30 uppercase">Missing</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {(() => {
+                        const reqIds = [17, 23, 34];
+                        const hasAllInInventory = reqIds.every(id => state.inventory.some(item => item.id === id));
+                        const hasAllTotal = reqIds.every(id => state.inventory.some(item => item.id === id) || state.storageLocker.some(item => item.id === id));
+                        
+                        if (hasAllInInventory) {
+                          return (
+                            <button 
+                              onClick={() => {
+                                setState(prev => {
+                                  if (!prev) return prev;
+                                  // Remove one of each required item from inventory
+                                  let nextInventory = [...prev.inventory];
+                                  reqIds.forEach(id => {
+                                    const index = nextInventory.findIndex(item => item.id === id);
+                                    if (index !== -1) {
+                                      nextInventory.splice(index, 1);
+                                    }
+                                  });
+                                  return { ...prev, inventory: nextInventory, hasMinerUpgrade: true };
+                                });
+                              }}
+                              className="w-full pixel-button py-3 bg-green-500/20 border-green-500 hover:bg-green-500/40 text-green-400 font-bold uppercase tracking-widest"
+                            >
+                              INSTALL UPGRADE
+                            </button>
+                          );
+                        } else if (hasAllTotal) {
+                          return (
+                            <div className="p-3 border border-yellow-500/30 bg-yellow-500/5 text-center">
+                              <p className="text-[10px] text-yellow-500 uppercase font-bold">All components located, but some are in storage.</p>
+                              <p className="text-[10px] opacity-70 mt-1">Retrieve all items to your cargo hold to install the upgrade.</p>
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div className="p-3 border border-white/10 bg-white/5 text-center">
+                              <p className="text-[10px] opacity-50 uppercase font-bold">Insufficient Components</p>
+                              <p className="text-[10px] opacity-30 mt-1">Scavenge the galaxy for the required parts.</p>
+                            </div>
+                          );
+                        }
+                      })()}
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-4 border border-white/10 opacity-30">
+                  <h4 className="text-sm font-bold uppercase tracking-widest">More Upgrades Coming Soon...</h4>
+                  <p className="text-[10px] mt-1">Our engineers are working on advanced hull plating and engine boosters.</p>
                 </div>
               </div>
             </div>
@@ -1902,7 +2185,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {encounter.status === 'waiting' && !encounter.usedDuctTape && state.inventory.some(i => i.name === 'Duct Tape') && (
+                {(encounter.status === 'waiting' || encounter.status === 'ambushed' || encounter.status === 'counter-attack') && !encounter.usedDuctTape && state.inventory.some(i => i.name === 'Duct Tape') && (
                   <button
                     onClick={useDuctTape}
                     className="pixel-button w-full py-2 text-[10px] uppercase tracking-widest font-bold"
@@ -1933,7 +2216,7 @@ export default function App() {
                         )}
                         <button onClick={() => handleEncounterAction('avoid')} className="pixel-button flex items-center justify-center gap-2">
                           <Move size={18} />
-                          <span>AVOID ({!encounter.isAmbush ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%')} CHANCE)</span>
+                          <span>AVOID ({state.hasCloakingSpell ? '100%' : (!encounter.isAmbush ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%'))} CHANCE)</span>
                         </button>
                       </>
                     )}
@@ -1946,7 +2229,7 @@ export default function App() {
                         </button>
                         <button onClick={() => handleEncounterAction('avoid')} className="pixel-button flex items-center justify-center gap-2">
                           <Move size={18} />
-                          <span>AVOID ({!encounter.isAmbush ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%')} CHANCE)</span>
+                          <span>AVOID ({state.hasCloakingSpell ? '100%' : (!encounter.isAmbush ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%'))} CHANCE)</span>
                         </button>
                       </>
                     )}

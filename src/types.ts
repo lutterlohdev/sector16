@@ -38,9 +38,11 @@ export interface GameState {
   storageLocker: Item[];
   storageCapacity: number;
   storageLockerCoords: { x: number; y: number };
+  upgradeCenterCoords: { x: number; y: number };
   map: Sector[];
   hasMetWizard: boolean;
   hasCloakingSpell: boolean;
+  hasMinerUpgrade: boolean;
   wizardCoords: { x: number; y: number } | null;
 }
 
