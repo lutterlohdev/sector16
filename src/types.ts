@@ -6,7 +6,7 @@
 export type SectorType = 'Asteroid Belt' | 'Ship Graveyard' | 'Nebula' | 'Trade Hub' | 'The Void' | 'Ruin Sector';
 
 export interface Item {
-  id: number;
+  id: number | string;
   name: string;
   value: number;
 }
@@ -52,4 +52,27 @@ export interface Sector {
   type: SectorType;
   name: string;
   coords: { r: number; c: number };
+}
+
+export interface EncounterState {
+  name: string;
+  power: number;
+  defense: number;
+  credits: number;
+  type: 'pirate' | 'ruin';
+  isAmbush: boolean;
+  status: 'waiting' | 'ambushed' | 'counter-attack' | 'finished';
+  result?: string;
+  exchangeResult?: string;
+  hasAttacked?: boolean;
+  usedDuctTape?: boolean;
+  tempDefense?: number;
+}
+
+export interface DiscoveryState {
+  title: string;
+  message: string;
+  item?: Item;
+  nocturniumYield?: number;
+  isHazard?: boolean;
 }
