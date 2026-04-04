@@ -63,6 +63,7 @@ const INITIAL_STATE: GameState = {
   hasCloakingSpell: false,
   hasMinerUpgrade: false,
   wizardCoords: null,
+  lastDirection: 'up',
 };
 
 // Generate static map
@@ -168,6 +169,12 @@ export default function App() {
 
       if (newX === currentGlobal.x && newY === currentGlobal.y) return prev;
 
+      let lastDirection = prev.lastDirection;
+      if (dx > 0) lastDirection = 'right';
+      else if (dx < 0) lastDirection = 'left';
+      else if (dy > 0) lastDirection = 'down';
+      else if (dy < 0) lastDirection = 'up';
+
       const nextMoveCount = prev.moveCount + 1;
       const sectorIndex = Math.floor(newY / 16) * 4 + Math.floor(newX / 16);
       const sector = prev.map[sectorIndex];
@@ -221,6 +228,7 @@ export default function App() {
         return {
           ...prev,
           globalCoords: { x: newX, y: newY },
+          lastDirection,
           moveCount: nextMoveCount,
           log: nextLog,
           damagedUpgrades: nextDamagedUpgrades
@@ -254,6 +262,7 @@ export default function App() {
         return {
           ...prev,
           globalCoords: { x: newX, y: newY },
+          lastDirection,
           moveCount: nextMoveCount,
           log: nextLog,
           damagedUpgrades: nextDamagedUpgrades
@@ -263,6 +272,7 @@ export default function App() {
       return {
         ...prev,
         globalCoords: { x: newX, y: newY },
+        lastDirection,
         moveCount: nextMoveCount,
         log: nextLog,
         damagedUpgrades: nextDamagedUpgrades
@@ -514,6 +524,7 @@ export default function App() {
       return {
         ...prev,
         globalCoords: newCoords,
+        lastDirection: 'up',
         damagedUpgrades: damagedTarget ? { ...prev.damagedUpgrades, [damagedTarget]: true } : prev.damagedUpgrades
       };
     });
@@ -1195,8 +1206,18 @@ export default function App() {
                       
                       {isPlayer && (
                         <div 
-                          className="w-4 h-4 bg-white rotate-45 z-10 shadow-[0_0_10px_rgba(255,255,255,0.5)]"
-                        />
+                          className="z-10 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] transition-transform duration-300"
+                          style={{ 
+                            transform: state.lastDirection === 'up' ? 'rotate(0deg)' : 
+                                       state.lastDirection === 'right' ? 'rotate(90deg)' : 
+                                       state.lastDirection === 'down' ? 'rotate(180deg)' : 
+                                       'rotate(270deg)' 
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                            <path d="M12 2L4 22L12 18L20 22L12 2Z" />
+                          </svg>
+                        </div>
                       )}
 
                       {state.storageLockerCoords.x === x && state.storageLockerCoords.y === y && (
@@ -1665,6 +1686,7 @@ export default function App() {
               <div className="flex flex-col items-center">
                 <div className="flex items-center gap-1 text-red-500 animate-pulse">
                   <Zap size={12} fill="currentColor" />
+                  <span className="text-sm font-bold">READY</span>
                 </div>
                 <span className="text-[8px] text-red-500 uppercase font-bold">Cloak</span>
               </div>

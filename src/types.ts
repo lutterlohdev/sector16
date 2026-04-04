@@ -44,6 +44,7 @@ export interface GameState {
   hasCloakingSpell: boolean;
   hasMinerUpgrade: boolean;
   wizardCoords: { x: number; y: number } | null;
+  lastDirection: 'up' | 'down' | 'left' | 'right';
 }
 
 export interface Sector {
