@@ -1,6 +1,9 @@
-import { useState, Dispatch, SetStateAction } from 'react';
-import { GameState, EncounterState } from '../types';
-import { generateNPC, rollDice, triggerDeath, rollCombatLoot } from '../utils/combat';
+import { useState, useCallback, Dispatch, SetStateAction } from 'react';
+import { GameState, EncounterState, VolleyOutcome } from '../types';
+import { generateNPC, calcHitChance, calcCritChance, resolveVolley, triggerDeath, rollCombatLoot } from '../utils/combat';
+
+const OVERCHARGE_BONUS = 0.15;
+const CHARGE_DURATION_MS = 1200;
 
 export function useEncounter(
   state: GameState | null,
@@ -14,6 +17,17 @@ export function useEncounter(
   const triggerEncounter = (isRuin: boolean) => {
     if (state && state.defense <= 0) return;
     const npc = generateNPC(state?.power || 1, state?.defense || 1, isRuin);
+
+    // Pre-calculate the initial hit chance
+    if (npc.isAmbush) {
+      // NPC attacks first — hit chance shown is player's chance to deflect
+      npc.playerHitChance = calcHitChance(state?.defense || 1, npc.power);
+      npc.isPlayerAttacking = false;
+    } else {
+      npc.playerHitChance = calcHitChance(state?.power || 1, npc.defense);
+      npc.isPlayerAttacking = true;
+    }
+
     setEncounter(npc);
   };
 
@@ -40,17 +54,313 @@ export function useEncounter(
     addLog("Used Duct Tape to patch the shields.");
   };
 
-  const handleEncounterAction = (action: 'attack' | 'defend' | 'avoid' | 'fly') => {
-    if (!state || !encounter) return;
+  /** Award loot and finish the encounter as a victory */
+  const awardVictory = useCallback((enc: EncounterState) => {
+    if (!state) return;
 
-    const totalPower = state.power;
+    const loot = enc.credits;
+    const foundItem = rollCombatLoot(enc.type);
+    const noctLoot = Math.floor(Math.random() * 9);
 
-    const handleDeathSideEffects = () => {
-      const tradeHub = state.map.find(s => s.type === 'Trade Hub');
-      const msg = `LOOTED! Your ship was disabled. You were towed to ${tradeHub?.name || 'Trade Hub'}. Stats reset. 90% credits lost.`;
-      addLog(msg);
-      setEncounter(e => e ? { ...e, result: msg, status: 'finished' } : null);
+    setState(s => {
+      if (!s) return s;
+
+      const nextInventory = [...s.inventory];
+      let nextNocturnium = s.nocturnium;
+
+      if (foundItem && (nextInventory.length + nextNocturnium) < s.cargoCapacity) {
+        nextInventory.push(foundItem);
+      }
+
+      for (let i = 0; i < noctLoot; i++) {
+        if ((nextInventory.length + nextNocturnium) < s.cargoCapacity) {
+          nextNocturnium++;
+        } else {
+          break;
+        }
+      }
+
+      return {
+        ...s,
+        credits: s.credits + loot,
+        inventory: nextInventory,
+        nocturnium: nextNocturnium
+      };
+    });
+
+    const msg = `VICTORY! You destroyed ${enc.name} and looted ${loot} credits.${foundItem ? ` Salvaged: ${foundItem.name}` : ''}${noctLoot > 0 ? ` Found ${noctLoot} Nocturnium.` : ''}`;
+    addLog(msg);
+    setEncounter(prev => prev ? { ...prev, npcShields: 0, result: msg, status: 'finished' } : null);
+  }, [state, setState, addLog]);
+
+  /** Handle player death */
+  const handlePlayerDeath = useCallback(() => {
+    if (!state) return;
+    const tradeHub = state.map.find(s => s.type === 'Trade Hub');
+    const msg = `LOOTED! Your ship was disabled. You were towed to ${tradeHub?.name || 'Trade Hub'}. Stats reset. 90% credits lost.`;
+    addLog(msg);
+    setState(prev => prev ? triggerDeath(prev) : null);
+    setEncounter(e => e ? { ...e, result: msg, status: 'finished' } : null);
+  }, [state, setState, addLog]);
+
+  /** Execute a single volley and resolve the outcome */
+  const executeVolley = useCallback((enc: EncounterState, currentState: GameState, isPlayerAttacking: boolean, overcharged: boolean) => {
+    const playerPower = currentState.power;
+    const playerDef = currentState.defense + (enc.tempDefense || 0);
+    const weaponsDamaged = currentState.damagedUpgrades.weapons;
+    const shieldsDamaged = currentState.damagedUpgrades.shields;
+
+    let hitChance: number;
+    let critChance: number;
+
+    if (isPlayerAttacking) {
+      hitChance = calcHitChance(playerPower, enc.npcShields);
+      critChance = calcCritChance(playerPower, enc.npcShields);
+      if (weaponsDamaged) hitChance = Math.max(0.15, hitChance - 0.15);
+      if (overcharged) hitChance = Math.min(0.95, hitChance + OVERCHARGE_BONUS);
+    } else {
+      hitChance = calcHitChance(playerDef, enc.power);
+      critChance = calcCritChance(playerDef, enc.power);
+      if (shieldsDamaged) hitChance = Math.max(0.15, hitChance - 0.15);
+      if (overcharged) hitChance = Math.min(0.95, hitChance + OVERCHARGE_BONUS);
+    }
+
+    const outcome: VolleyOutcome = resolveVolley(hitChance, critChance);
+    const nextVolley = enc.currentVolley + 1;
+
+    const record = {
+      volley: nextVolley,
+      outcome,
+      hitChance,
+      wasOvercharged: overcharged,
     };
+
+    if (isPlayerAttacking) {
+      if (outcome === 'critical') {
+        const newShields = Math.max(0, enc.npcShields - 2);
+        const msg = `⚡ CRITICAL HIT! Volley ${nextVolley}: Tore through their shields! (-2)`;
+        addLog(msg);
+
+        if (newShields <= 0) {
+          setEncounter(prev => prev ? {
+            ...prev,
+            currentVolley: nextVolley,
+            npcShields: 0,
+            lastOutcome: outcome,
+            volleyLog: [...prev.volleyLog, record],
+            exchangeResult: msg,
+            playerHitChance: hitChance,
+          } : null);
+          setTimeout(() => awardVictory(enc), 400);
+          return;
+        }
+
+        setEncounter(prev => prev ? {
+          ...prev,
+          currentVolley: nextVolley,
+          npcShields: newShields,
+          lastOutcome: outcome,
+          volleyLog: [...prev.volleyLog, record],
+          status: 'between-volleys',
+          exchangeResult: msg,
+          playerHitChance: calcHitChance(playerPower, newShields),
+          isPlayerAttacking: true,
+          overcharged: false,
+        } : null);
+
+      } else if (outcome === 'hit') {
+        const newShields = Math.max(0, enc.npcShields - 1);
+        const msg = `🎯 HIT! Volley ${nextVolley}: Direct hit on their shields. (-1)`;
+        addLog(msg);
+
+        if (newShields <= 0) {
+          setEncounter(prev => prev ? {
+            ...prev,
+            currentVolley: nextVolley,
+            npcShields: 0,
+            lastOutcome: outcome,
+            volleyLog: [...prev.volleyLog, record],
+            exchangeResult: msg,
+            playerHitChance: hitChance,
+          } : null);
+          setTimeout(() => awardVictory(enc), 400);
+          return;
+        }
+
+        setEncounter(prev => prev ? {
+          ...prev,
+          currentVolley: nextVolley,
+          npcShields: newShields,
+          lastOutcome: outcome,
+          volleyLog: [...prev.volleyLog, record],
+          status: 'between-volleys',
+          exchangeResult: msg,
+          playerHitChance: calcHitChance(playerPower, newShields),
+          isPlayerAttacking: true,
+          overcharged: false,
+        } : null);
+
+      } else {
+        // Miss — NPC retaliates, player loses 1 shield
+        const msg = `💨 MISS! Volley ${nextVolley}: Shot went wide. They return fire! (-1 Shield)`;
+        addLog(msg);
+
+        const newDefense = currentState.defense - 1;
+        if (newDefense <= 0) {
+          handlePlayerDeath();
+          return;
+        }
+
+        setState(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            defense: newDefense,
+            upgrades: { ...prev.upgrades, shields: newDefense },
+          };
+        });
+
+        // NPC might flee after volley 2+
+        if (nextVolley >= 2 && Math.random() < 0.1) {
+          const fleeMsg = `${enc.name} warped out after the exchange!`;
+          addLog(fleeMsg);
+          setEncounter(prev => prev ? {
+            ...prev,
+            currentVolley: nextVolley,
+            lastOutcome: outcome,
+            volleyLog: [...prev.volleyLog, record],
+            result: fleeMsg,
+            status: 'finished',
+            exchangeResult: msg,
+          } : null);
+          return;
+        }
+
+        setEncounter(prev => prev ? {
+          ...prev,
+          currentVolley: nextVolley,
+          lastOutcome: outcome,
+          volleyLog: [...prev.volleyLog, record],
+          status: 'between-volleys',
+          exchangeResult: msg,
+          playerHitChance: calcHitChance(playerPower, prev.npcShields),
+          isPlayerAttacking: true,
+          overcharged: false,
+        } : null);
+      }
+    } else {
+      // NPC attacking player (defend phase)
+      if (outcome === 'critical') {
+        const msg = `🛡️ PERFECT DEFLECT! Volley ${nextVolley}: You turned their shot back on them!`;
+        addLog(msg);
+
+        const newNpcShields = Math.max(0, enc.npcShields - 1);
+
+        if (newNpcShields <= 0) {
+          setEncounter(prev => prev ? {
+            ...prev,
+            currentVolley: nextVolley,
+            npcShields: 0,
+            lastOutcome: outcome,
+            volleyLog: [...prev.volleyLog, record],
+            exchangeResult: msg,
+            playerHitChance: hitChance,
+          } : null);
+          setTimeout(() => awardVictory(enc), 400);
+          return;
+        }
+
+        setEncounter(prev => prev ? {
+          ...prev,
+          currentVolley: nextVolley,
+          npcShields: newNpcShields,
+          lastOutcome: outcome,
+          volleyLog: [...prev.volleyLog, record],
+          status: 'between-volleys',
+          exchangeResult: msg,
+          playerHitChance: calcHitChance(playerPower, newNpcShields),
+          isPlayerAttacking: true,
+          overcharged: false,
+        } : null);
+
+      } else if (outcome === 'hit') {
+        const msg = `🛡️ DEFLECTED! Volley ${nextVolley}: Shields held. You have the advantage!`;
+        addLog(msg);
+
+        setEncounter(prev => prev ? {
+          ...prev,
+          currentVolley: nextVolley,
+          lastOutcome: outcome,
+          volleyLog: [...prev.volleyLog, record],
+          status: 'between-volleys',
+          exchangeResult: msg,
+          playerHitChance: calcHitChance(playerPower, prev.npcShields),
+          isPlayerAttacking: true,
+          overcharged: false,
+        } : null);
+
+      } else {
+        // Player failed to defend — takes damage
+        const msg = `💥 BREACHED! Volley ${nextVolley}: Their shot punched through!`;
+        addLog(msg);
+
+        let realLoss = 1;
+        let newTempDef = enc.tempDefense || 0;
+        if (newTempDef > 0) {
+          newTempDef -= 1;
+          realLoss = 0;
+        }
+
+        const newDefense = currentState.defense - realLoss;
+        if (newDefense <= 0 && realLoss > 0) {
+          handlePlayerDeath();
+          return;
+        }
+
+        if (realLoss > 0) {
+          setState(prev => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              defense: newDefense,
+              upgrades: { ...prev.upgrades, shields: newDefense },
+            };
+          });
+        }
+
+        if (Math.random() < 0.5) {
+          setEncounter(prev => prev ? {
+            ...prev,
+            currentVolley: nextVolley,
+            lastOutcome: outcome,
+            volleyLog: [...prev.volleyLog, record],
+            status: 'between-volleys',
+            exchangeResult: msg + " They're lining up another shot!",
+            playerHitChance: calcHitChance(Math.max(1, playerDef - realLoss), enc.power),
+            isPlayerAttacking: false,
+            tempDefense: newTempDef,
+            overcharged: false,
+          } : null);
+        } else {
+          setEncounter(prev => prev ? {
+            ...prev,
+            currentVolley: nextVolley,
+            lastOutcome: outcome,
+            volleyLog: [...prev.volleyLog, record],
+            status: 'between-volleys',
+            exchangeResult: msg + " Opening in their formation — your turn!",
+            playerHitChance: calcHitChance(playerPower, prev.npcShields),
+            isPlayerAttacking: true,
+            tempDefense: newTempDef,
+            overcharged: false,
+          } : null);
+        }
+      }
+    }
+  }, [addLog, setState, awardVictory, handlePlayerDeath]);
+
+  const handleEncounterAction = (action: 'attack' | 'defend' | 'avoid' | 'fly' | 'overcharge' | 'disengage') => {
+    if (!state || !encounter) return;
 
     if (action === 'fly') {
       addLog("You successfully flew away.");
@@ -64,197 +374,81 @@ export function useEncounter(
         addLog(state.hasCloakingSpell ? "Cloaking Spell active: Successfully avoided the encounter." : "Successfully avoided the encounter.");
         setEncounter(null);
       } else {
-        if (encounter.isAmbush) {
-          addLog("Avoid failed! You took damage while fleeing.");
-          if (state.defense - 1 <= 0) {
-            setState(prev => prev ? triggerDeath(prev) : null);
-            handleDeathSideEffects();
-          } else {
-            setState(prev => {
-              if (!prev) return prev;
-              const nextDefense = prev.defense - 1;
-              return {
-                ...prev,
-                defense: nextDefense,
-                upgrades: { ...prev.upgrades, shields: nextDefense }
-              };
-            });
-            setEncounter(prev => prev ? { ...prev, result: "Avoid failed. You took 1 damage and the other ship disengaged.", status: 'finished' } : null);
-          }
-        } else {
-          addLog("Failed to avoid! Forced to defend.");
-          handleEncounterAction('defend');
-        }
+        // Failed avoid — force into a defend volley immediately
+        addLog("Avoid failed! Brace for impact!");
+
+        const encSnapshot = { ...encounter };
+        const stateSnapshot = { ...state };
+
+        setEncounter(prev => prev ? {
+          ...prev,
+          status: 'charging',
+          isPlayerAttacking: false,
+          exchangeResult: "Evasion failed! Incoming fire!",
+        } : null);
+
+        setTimeout(() => {
+          executeVolley(encSnapshot, stateSnapshot, false, false);
+        }, CHARGE_DURATION_MS);
       }
       return;
     }
 
-    if (action === 'attack') {
-      // Flee Check: After the initial attack, 10% chance to flee
-      if (encounter.hasAttacked && Math.random() < 0.1) {
-        const msg = `${encounter.name} warped out! The encounter ended instantly.`;
-        addLog(msg);
-        setEncounter(prev => prev ? { ...prev, result: msg, status: 'finished' } : null);
+    if (action === 'disengage') {
+      if (encounter.currentVolley < 1) return;
+      addLog("You disengaged from the battle.");
+      setEncounter(prev => prev ? {
+        ...prev,
+        result: "You pulled away and disengaged from the fight.",
+        status: 'finished',
+      } : null);
+      return;
+    }
+
+    if (action === 'overcharge') {
+      if (state.defense <= 1) {
+        addLog("Shields too low to overcharge!");
         return;
       }
 
-      // Exchange: Power dice vs Defense dice
-      let playerDiceCount = Math.min(Math.floor(totalPower), 3);
-      if (state.damagedUpgrades.weapons && playerDiceCount > 1) {
-        playerDiceCount = 1;
-      }
-      const npcDiceCount = Math.min(Math.floor(encounter.defense), 2);
-
-      const pDice = rollDice(playerDiceCount);
-      const nDice = rollDice(npcDiceCount);
-
-      const comparisons = Math.min(playerDiceCount, npcDiceCount);
-      let pWins = 0;
-      let nWins = 0;
-
-      for (let i = 0; i < comparisons; i++) {
-        if (pDice[i] > nDice[i]) pWins++;
-        else nWins++; // Ties go to defender
-      }
-
-      // Update Player stats: +1 Power per win, -1 Power per loss
       setState(prev => {
         if (!prev) return prev;
-        const nextPower = Math.max(0, prev.power + pWins - nWins);
+        const nextDefense = prev.defense - 1;
         return {
           ...prev,
-          power: nextPower,
-          upgrades: { ...prev.upgrades, weapons: nextPower }
+          defense: nextDefense,
+          upgrades: { ...prev.upgrades, shields: nextDefense },
         };
       });
 
-      // Update NPC stats
-      const nextDefense = Math.max(0, encounter.defense - pWins);
-      let exchangeMsg = `Exchange: You rolled [${pDice.join(',')}] vs Other [${nDice.join(',')}]. You won ${pWins} ${pWins === 1 ? 'exchange' : 'exchanges'}.`;
+      setEncounter(prev => prev ? {
+        ...prev,
+        overcharged: true,
+        exchangeResult: "⚡ OVERCHARGED! Diverted shield power to weapons. (+15% hit chance, -1 Shield)",
+      } : null);
 
-      if (pWins === 0) {
-        exchangeMsg = `The other ship successfully defended itself and flew away. You lost 1 Power in the exchange.`;
-      }
-
-      if (nextDefense <= 0) {
-        // Win and loot ship
-        const loot = encounter.credits;
-        const foundItem = rollCombatLoot(encounter.type);
-        const noctLoot = Math.floor(Math.random() * 9); // 0 to 8
-
-        setState(s => {
-          if (!s) return s;
-
-          let nextInventory = [...s.inventory];
-          let nextNocturnium = s.nocturnium;
-
-          // Try to add item
-          if (foundItem && (nextInventory.length + nextNocturnium) < s.cargoCapacity) {
-            nextInventory.push(foundItem);
-          }
-
-          // Try to add nocturnium
-          for (let i = 0; i < noctLoot; i++) {
-            if ((nextInventory.length + nextNocturnium) < s.cargoCapacity) {
-              nextNocturnium++;
-            } else {
-              break;
-            }
-          }
-
-          return {
-            ...s,
-            credits: s.credits + loot,
-            inventory: nextInventory,
-            nocturnium: nextNocturnium
-          };
-        });
-
-        const msg = `VICTORY! You destroyed ${encounter.name} and looted ${loot} credits.${foundItem ? ` Salvaged: ${foundItem.name}` : ''}${noctLoot > 0 ? ` Found ${noctLoot} Nocturnium.` : ''}`;
-        addLog(msg);
-        setEncounter(prev => prev ? { ...prev, defense: 0, result: msg, exchangeResult: exchangeMsg, status: 'finished' } : null);
-      } else if (pWins === 0) {
-        const msg = `FAILED ATTACK! The other ship successfully defended itself and flew away. You lost 1 Power in the exchange.`;
-        addLog(msg);
-        setEncounter(prev => prev ? { ...prev, result: msg, exchangeResult: exchangeMsg, status: 'finished' } : null);
-      } else {
-        setEncounter(prev => prev ? { ...prev, defense: nextDefense, hasAttacked: true, exchangeResult: exchangeMsg } : null);
-      }
-
-      addLog(`Attack: You rolled [${pDice.join(',')}] vs Other [${nDice.join(',')}]. You won ${pWins} ${pWins === 1 ? 'exchange' : 'exchanges'}.`);
+      addLog("Overcharged weapons! Shield energy diverted. (+15% hit, -1 Shield)");
       return;
     }
 
-    if (action === 'defend') {
-      // Exchange: NPC Power dice vs Player Defense dice
-      const npcDiceCount = Math.min(Math.floor(encounter.power), 3);
-      let playerDiceCount = Math.min(Math.floor(totalDefense + (encounter.tempDefense || 0)), 2);
-      if (state.damagedUpgrades.shields && playerDiceCount > 1) {
-        playerDiceCount = 1;
-      }
+    if (action === 'attack' || action === 'defend') {
+      const isPlayerAttacking = action === 'attack';
 
-      const nDice = rollDice(npcDiceCount);
-      const pDice = rollDice(playerDiceCount);
+      // Snapshot current state for the volley resolution
+      const encSnapshot = { ...encounter };
+      const stateSnapshot = { ...state };
 
-      const comparisons = Math.min(npcDiceCount, playerDiceCount);
-      let nWinsLocal = 0;
-      let pWinsLocal = 0;
+      // Start the charging phase
+      setEncounter(prev => prev ? {
+        ...prev,
+        status: 'charging',
+        isPlayerAttacking,
+      } : null);
 
-      for (let i = 0; i < comparisons; i++) {
-        if (nDice[i] > pDice[i]) nWinsLocal++;
-        else pWinsLocal++; // Ties go to defender
-      }
-
-      // Logic for results
-      if (pWinsLocal > nWinsLocal) {
-        // Player Wins
-        addLog("Defend successful! You have the advantage.");
-        setEncounter(prev => prev ? { ...prev, status: 'counter-attack', exchangeResult: `Defense: You won the exchange! [${pDice.join(',')}] vs [${nDice.join(',')}]` } : null);
-      } else if (pWinsLocal === nWinsLocal) {
-        // Split Decision
-        if (Math.random() < 0.5) {
-          addLog("Split decision! The other ship flies away.");
-          setEncounter(prev => prev ? { ...prev, result: "Split decision. The other ship disengaged.", status: 'finished' } : null);
-        } else {
-          addLog("Split decision! The other ship attacks again!");
-          setEncounter(prev => prev ? { ...prev, exchangeResult: "Split decision. The other ship is coming around for another pass!" } : null);
-        }
-      } else {
-        // Player Loses
-        addLog("Defend failed! You took damage.");
-
-        // Handle temp defense first
-        let remainingLoss = nWinsLocal;
-        let newTempDefense = encounter.tempDefense || 0;
-        if (newTempDefense > 0) {
-          const reduction = Math.min(newTempDefense, remainingLoss);
-          newTempDefense -= reduction;
-          remainingLoss -= reduction;
-        }
-
-        if (state.defense - remainingLoss <= 0) {
-          setState(prev => prev ? triggerDeath(prev) : null);
-          handleDeathSideEffects();
-        } else {
-          setState(prev => {
-            if (!prev) return prev;
-            const nextDefense = prev.defense - remainingLoss;
-            return {
-              ...prev,
-              defense: nextDefense,
-              upgrades: { ...prev.upgrades, shields: nextDefense }
-            };
-          });
-
-          if (Math.random() < 0.6) {
-            addLog("The other ship attacks again!");
-            setEncounter(prev => prev ? { ...prev, exchangeResult: `Defend failed. You lost ${nWinsLocal} Defense. The other ship attacks again!`, tempDefense: newTempDefense } : null);
-          } else {
-            addLog("The other ship disengages.");
-            setEncounter(prev => prev ? { ...prev, result: `Defend failed. You lost ${nWinsLocal} Defense. The other ship disengaged.`, status: 'finished' } : null);
-          }
-        }
-      }
+      // After the charge animation, resolve the volley
+      setTimeout(() => {
+        executeVolley(encSnapshot, stateSnapshot, isPlayerAttacking, encounter.overcharged || false);
+      }, CHARGE_DURATION_MS);
       return;
     }
   };
