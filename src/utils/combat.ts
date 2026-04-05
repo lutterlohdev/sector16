@@ -1,8 +1,26 @@
-import { GameState, Item, EncounterState } from '../types';
+import { GameState, Item, EncounterState, VolleyOutcome } from '../types';
 import { NPC_NAMES_PREFIX, NPC_NAMES_SUFFIX, SPACE_JUNK } from '../constants';
 
-export const rollDice = (count: number): number[] => {
-  return Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1).sort((a, b) => b - a);
+/** Calculate the base hit chance for an attacker vs a defender */
+export const calcHitChance = (attackStat: number, defenseStat: number): number => {
+  const atk = Math.max(attackStat, 0.5);
+  const def = Math.max(defenseStat, 0.5);
+  return Math.min(0.95, Math.max(0.15, atk / (atk + def)));
+};
+
+/** Calculate critical hit bonus chance (scales with power advantage) */
+export const calcCritChance = (attackStat: number, defenseStat: number): number => {
+  const advantage = attackStat - defenseStat;
+  if (advantage <= 0) return 0.03; // 3% base crit
+  return Math.min(0.20, 0.03 + advantage * 0.02); // +2% per point advantage, max 20%
+};
+
+/** Resolve a single volley given a hit chance */
+export const resolveVolley = (hitChance: number, critChance: number): VolleyOutcome => {
+  const roll = Math.random();
+  if (roll < critChance) return 'critical';
+  if (roll < hitChance) return 'hit';
+  return 'miss';
 };
 
 export const generateNPC = (playerPower: number, playerDefense: number, isRuin: boolean): EncounterState => {
@@ -55,7 +73,11 @@ export const generateNPC = (playerPower: number, playerDefense: number, isRuin: 
     type: isRuin ? 'ruin' : 'pirate',
     isAmbush,
     status: isAmbush ? 'ambushed' : 'waiting',
-    hasAttacked: false
+    currentVolley: 0,
+    npcShields: npcDefense,
+    playerHitChance: 0,
+    volleyLog: [],
+    isPlayerAttacking: !isAmbush,
   };
 };
 

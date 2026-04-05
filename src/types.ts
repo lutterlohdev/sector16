@@ -54,6 +54,15 @@ export interface Sector {
   coords: { r: number; c: number };
 }
 
+export type VolleyOutcome = 'hit' | 'miss' | 'critical';
+
+export interface VolleyRecord {
+  volley: number;
+  outcome: VolleyOutcome;
+  hitChance: number;
+  wasOvercharged: boolean;
+}
+
 export interface EncounterState {
   name: string;
   power: number;
@@ -61,12 +70,19 @@ export interface EncounterState {
   credits: number;
   type: 'pirate' | 'ruin';
   isAmbush: boolean;
-  status: 'waiting' | 'ambushed' | 'counter-attack' | 'finished';
+  status: 'waiting' | 'ambushed' | 'charging' | 'between-volleys' | 'finished';
   result?: string;
   exchangeResult?: string;
-  hasAttacked?: boolean;
   usedDuctTape?: boolean;
   tempDefense?: number;
+  // Volley system fields
+  currentVolley: number;
+  npcShields: number;
+  playerHitChance: number;
+  lastOutcome?: VolleyOutcome;
+  volleyLog: VolleyRecord[];
+  isPlayerAttacking: boolean;
+  overcharged?: boolean;
 }
 
 export interface DiscoveryState {
