@@ -33,14 +33,14 @@ export function useMovement(
 
       // Radiation Hazard (Nebula only)
       let nextLog = [...prev.log];
-      let nextDamagedUpgrades = { ...prev.damagedUpgrades };
+      let nextJumpDriveDisabled = prev.jumpDriveDisabled;
       if (sector.type === 'Nebula' && !prev.hasCloakingSpell && Math.random() < 0.2) {
-        if (!nextDamagedUpgrades.shields) {
-          nextDamagedUpgrades.shields = true;
-          nextLog = [`RADIATION HAZARD: SHIELDS systems damaged!`, ...nextLog].slice(0, 10);
+        if (!prev.jumpDriveDisabled) {
+          nextJumpDriveDisabled = true;
+          nextLog = [`RADIATION HAZARD: Jump drive disabled!`, ...nextLog].slice(0, 10);
           setTimeout(() => callbacks.onDiscovery({
             title: "RADIATION HAZARD",
-            message: "Intense cosmic radiation has compromised your shield emitters! Defense dice are limited to 1 until repaired at a Trade Hub.",
+            message: "Intense cosmic radiation has fried your jump drive navigation systems! Jumping is disabled until repaired at the Upgrade Center (64 CR).",
             isHazard: true
           }), 0);
         }
@@ -83,7 +83,7 @@ export function useMovement(
           lastDirection,
           moveCount: nextMoveCount,
           log: nextLog,
-          damagedUpgrades: nextDamagedUpgrades
+          jumpDriveDisabled: nextJumpDriveDisabled
         };
       }
 
@@ -114,7 +114,7 @@ export function useMovement(
           lastDirection,
           moveCount: nextMoveCount,
           log: nextLog,
-          damagedUpgrades: nextDamagedUpgrades
+          jumpDriveDisabled: nextJumpDriveDisabled
         };
       }
 
@@ -124,7 +124,7 @@ export function useMovement(
         lastDirection,
         moveCount: nextMoveCount,
         log: nextLog,
-        damagedUpgrades: nextDamagedUpgrades
+        jumpDriveDisabled: nextJumpDriveDisabled
       };
     });
   };

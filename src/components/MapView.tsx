@@ -120,7 +120,7 @@ export default function MapView({ state, currentSector, onJumpTo, isJumping }: M
         {/* Map Overlay: Sector Navigation */}
         <div className="absolute bottom-4 right-4 flex flex-col gap-2">
           <div className="pixel-border bg-black/80 p-2 space-y-2">
-            <p className="text-[8px] opacity-50 text-center uppercase">Jump Drive</p>
+            <p className="text-[8px] opacity-50 text-center uppercase">Jump Drive{state.jumpDriveDisabled ? <span className="text-red-500"> [OFFLINE]</span> : ''}</p>
             <div className="grid grid-cols-4 gap-1">
               {state.map.map((s, i) => {
                 const currentSectorIndex = Math.floor(state.globalCoords.y / 16) * 4 + Math.floor(state.globalCoords.x / 16);
@@ -129,14 +129,17 @@ export default function MapView({ state, currentSector, onJumpTo, isJumping }: M
                   <button
                     key={i}
                     onClick={() => onJumpTo(i)}
-                    disabled={isJumping || isCurrent}
-                    className={`w-6 h-6 text-[8px] flex items-center justify-center border ${isCurrent ? 'bg-white text-black' : 'border-white/30 hover:bg-white/10'}`}
+                    disabled={isJumping || isCurrent || state.jumpDriveDisabled}
+                    className={`w-6 h-6 text-[8px] flex items-center justify-center border ${isCurrent ? 'bg-white text-black' : state.jumpDriveDisabled ? 'border-red-500/30 opacity-40 cursor-not-allowed' : 'border-white/30 hover:bg-white/10'}`}
                   >
                     {s.coords.r}.{s.coords.c}
                   </button>
                 );
               })}
             </div>
+            {state.jumpDriveDisabled && (
+              <p className="text-[8px] text-red-500 text-center uppercase animate-pulse">Repair at Upgrade Center</p>
+            )}
           </div>
         </div>
       </div>

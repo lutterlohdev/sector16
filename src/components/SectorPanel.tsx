@@ -23,7 +23,8 @@ interface SectorPanelProps {
   sellItem: (index: number) => void;
   sellAll: () => void;
   buyUpgrade: (type: 'cargo' | 'shields' | 'weapons' | 'storage') => void;
-  repairUpgrade: (type: 'cargo' | 'shields' | 'weapons' | 'storage') => void;
+  repairUpgrade: (type: 'cargo' | 'weapons' | 'storage') => void;
+  repairJumpDrive: () => void;
   installMinerUpgrade: () => void;
   buyDuctTape: () => void;
 }
@@ -39,6 +40,7 @@ export default function SectorPanel({
   sellAll,
   buyUpgrade,
   repairUpgrade,
+  repairJumpDrive,
   installMinerUpgrade,
   buyDuctTape,
 }: SectorPanelProps) {
@@ -117,6 +119,7 @@ export default function SectorPanel({
                       state={state}
                       buyUpgrade={buyUpgrade}
                       repairUpgrade={repairUpgrade}
+                      repairJumpDrive={repairJumpDrive}
                       installMinerUpgrade={installMinerUpgrade}
                     />
                   </div>
@@ -226,7 +229,7 @@ export default function SectorPanel({
             <div>
               <p className="text-sm text-purple-400 font-bold uppercase tracking-widest">Nebula Detected</p>
               <p className="text-xs opacity-60 mt-2 leading-relaxed">
-                Hazardous cosmic clouds. High radiation levels can damage shields.<br/>
+                Hazardous cosmic clouds. Radiation exposure can disable your jump drive.<br/>
                 Mysterious energy signatures reported in this area.
               </p>
             </div>

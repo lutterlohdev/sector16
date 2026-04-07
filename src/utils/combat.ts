@@ -111,8 +111,9 @@ export const triggerDeath = (prev: GameState): GameState => {
     nocturnium: nextNocturnium,
     globalCoords: hubCoords,
     upgrades: { ...prev.upgrades, cargo: 0, shields: 0, weapons: 0 },
-    damagedUpgrades: { cargo: false, shields: false, weapons: false, storage: false },
-    cargoCapacity: newCapacity
+    damagedUpgrades: { cargo: false, weapons: false, storage: false },
+    cargoCapacity: newCapacity,
+    jumpDriveDisabled: false
   };
 };
 

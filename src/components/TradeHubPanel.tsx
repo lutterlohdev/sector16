@@ -21,7 +21,7 @@ export default function TradeHubPanel({
   // Warning banner logic
   const isWeaponsOffline = state.power <= 0;
   const isShieldsDown = state.defense <= 0;
-  const needsWarning = isWeaponsOffline || isShieldsDown || state.damagedUpgrades.weapons || state.damagedUpgrades.shields;
+  const needsWarning = isWeaponsOffline || isShieldsDown || state.damagedUpgrades.weapons || state.jumpDriveDisabled;
 
   return (
     <div className="space-y-4">
@@ -33,7 +33,7 @@ export default function TradeHubPanel({
             {isWeaponsOffline && <p>Weapons systems offline.</p>}
             {state.damagedUpgrades.weapons && !isWeaponsOffline && <p className="text-yellow-400">Weapons compromised: Attack dice limited to 1.</p>}
             {isShieldsDown && <p>Shields down.</p>}
-            {state.damagedUpgrades.shields && !isShieldsDown && <p className="text-yellow-400">Shields compromised: Defense dice limited to 1.</p>}
+            {state.jumpDriveDisabled && <p className="text-red-400">Jump drive offline: Cannot jump between sectors. Repair at the Upgrade Center.</p>}
             <p className="mt-2 text-white not-italic">
               Recommendation: Visit the Upgrade Center at The Nocturnal Hub to repair or upgrade your systems.
             </p>

@@ -4,11 +4,12 @@ import { GameState } from '../types';
 interface UpgradeCenterPanelProps {
   state: GameState;
   buyUpgrade: (type: 'cargo' | 'shields' | 'weapons' | 'storage') => void;
-  repairUpgrade: (type: 'cargo' | 'shields' | 'weapons' | 'storage') => void;
+  repairUpgrade: (type: 'cargo' | 'weapons' | 'storage') => void;
+  repairJumpDrive: () => void;
   installMinerUpgrade: () => void;
 }
 
-export default function UpgradeCenterPanel({ state, buyUpgrade, repairUpgrade, installMinerUpgrade }: UpgradeCenterPanelProps) {
+export default function UpgradeCenterPanel({ state, buyUpgrade, repairUpgrade, repairJumpDrive, installMinerUpgrade }: UpgradeCenterPanelProps) {
   const basePrice = 16;
   const reqIds = [17, 23, 34];
   const hasAllInInventory = reqIds.every(id => state.inventory.some(item => item.id === id));
@@ -18,7 +19,7 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairUpgrade, i
 
   const isWeaponsOffline = state.power <= 0;
   const isShieldsDown = state.defense <= 0;
-  const needsWarning = isWeaponsOffline || isShieldsDown || state.damagedUpgrades.weapons || state.damagedUpgrades.shields;
+  const needsWarning = isWeaponsOffline || isShieldsDown || state.damagedUpgrades.weapons || state.jumpDriveDisabled;
 
   return (
     <div className="space-y-4">
@@ -30,7 +31,7 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairUpgrade, i
             {isWeaponsOffline && <p>Weapons systems offline.</p>}
             {state.damagedUpgrades.weapons && !isWeaponsOffline && <p className="text-yellow-400">Weapons compromised: Attack limited.</p>}
             {isShieldsDown && <p>Shields down.</p>}
-            {state.damagedUpgrades.shields && !isShieldsDown && <p className="text-yellow-400">Shields compromised: Defense limited.</p>}
+            {state.jumpDriveDisabled && <p className="text-red-400">Jump drive offline: Navigation disabled. Repair required.</p>}
           </div>
         </div>
       )}
@@ -41,7 +42,7 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairUpgrade, i
         {(['cargo', 'shields', 'weapons', 'storage'] as const).map(type => {
           const count = state.upgrades[type] || 0;
           const cost = Math.floor(basePrice * Math.pow(2, count));
-          const isDamaged = state.damagedUpgrades[type];
+          const isDamaged = type !== 'shields' ? state.damagedUpgrades[type as 'cargo' | 'weapons' | 'storage'] : false;
           const repairCost = Math.floor(Math.floor(basePrice * Math.pow(2, count - 1)) * 0.2);
 
           const displayNames: Record<string, string> = {
@@ -76,7 +77,7 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairUpgrade, i
                 </button>
                 {isDamaged && (
                   <button
-                    onClick={() => repairUpgrade(type)}
+                    onClick={() => repairUpgrade(type as 'cargo' | 'weapons' | 'storage')}
                     className="flex-1 pixel-button text-xs py-1 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
                   >
                     REPAIR ({repairCost} CR)
@@ -86,6 +87,31 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairUpgrade, i
             </div>
           );
         })}
+      </div>
+
+      {/* Jump Drive Repair */}
+      <div className="grid grid-cols-1 gap-2 mt-2">
+        <p className="text-xs border-b border-white pb-1">NAVIGATION SYSTEMS</p>
+        <div className={`p-3 border ${state.jumpDriveDisabled ? 'border-red-500/50 bg-red-500/5' : 'border-white/20 bg-white/5'} space-y-2`}>
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest">Jump Drive</p>
+              <p className="text-[10px] opacity-70 mt-0.5">Sector-to-sector navigation system.</p>
+            </div>
+            {state.jumpDriveDisabled
+              ? <span className="text-red-500 text-[10px] animate-pulse font-bold uppercase">OFFLINE</span>
+              : <span className="text-green-400 text-[10px] font-bold uppercase">Online</span>
+            }
+          </div>
+          {state.jumpDriveDisabled && (
+            <button
+              onClick={repairJumpDrive}
+              className="w-full pixel-button text-xs py-1 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+            >
+              REPAIR JUMP DRIVE (64 CR)
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Nocturnium Miner Upgrade */}

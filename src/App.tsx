@@ -58,7 +58,7 @@ export default function App() {
   // Trading hook
   const {
     sellAll, sellItem, sellNocturnium,
-    buyUpgrade, repairUpgrade, buyDuctTape, installMinerUpgrade
+    buyUpgrade, repairUpgrade, repairJumpDrive, buyDuctTape, installMinerUpgrade
   } = useTrading(state, setState, addLog);
 
   // Keyboard listeners for sub-sector movement
@@ -137,6 +137,7 @@ export default function App() {
               sellAll={sellAll}
               buyUpgrade={buyUpgrade}
               repairUpgrade={repairUpgrade}
+              repairJumpDrive={repairJumpDrive}
               installMinerUpgrade={installMinerUpgrade}
               buyDuctTape={buyDuctTape}
             />

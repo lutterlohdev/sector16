@@ -89,7 +89,7 @@ export function useTrading(
     }
   };
 
-  const repairUpgrade = (type: 'cargo' | 'shields' | 'weapons' | 'storage') => {
+  const repairUpgrade = (type: 'cargo' | 'weapons' | 'storage') => {
     if (!state || !state.damagedUpgrades[type]) return;
     const basePrice = 16;
     const count = state.upgrades[type];
@@ -129,6 +129,21 @@ export function useTrading(
     addLog("Purchased Duct Tape.");
   };
 
+  const repairJumpDrive = () => {
+    if (!state || !state.jumpDriveDisabled) return;
+    const cost = 64;
+    if (state.credits >= cost) {
+      setState(prev => prev ? ({
+        ...prev,
+        credits: prev.credits - cost,
+        jumpDriveDisabled: false
+      }) : null);
+      addLog(`Jump drive repaired for ${cost} credits. Navigation systems restored.`);
+    } else {
+      addLog("Insufficient credits to repair jump drive (64 CR required).");
+    }
+  };
+
   const installMinerUpgrade = () => {
     if (!state) return;
     const reqIds = [17, 23, 34];
@@ -148,5 +163,5 @@ export function useTrading(
     addLog("Nocturnium Miner Upgrade installed!");
   };
 
-  return { sellAll, sellItem, sellNocturnium, buyUpgrade, repairUpgrade, buyDuctTape, installMinerUpgrade };
+  return { sellAll, sellItem, sellNocturnium, buyUpgrade, repairUpgrade, repairJumpDrive, buyDuctTape, installMinerUpgrade };
 }

@@ -16,14 +16,7 @@ export function useJump(
     setIsJumping(false);
     const newSector = state.map[index];
 
-    let damagedTarget: 'cargo' | 'shields' | 'weapons' | null = null;
-    if (newSector.type === 'Nebula' && Math.random() < 0.2) {
-      const upgrades = ['cargo', 'shields', 'weapons'] as const;
-      const target = upgrades[Math.floor(Math.random() * upgrades.length)];
-      if (state.upgrades[target] > 0 && !state.damagedUpgrades[target]) {
-        damagedTarget = target;
-      }
-    }
+    const disableJumpDrive = newSector.type === 'Nebula' && !state.jumpDriveDisabled && Math.random() < 0.2;
 
     const sectorRow = Math.floor(index / 4);
     const sectorCol = index % 4;
@@ -35,13 +28,12 @@ export function useJump(
         ...prev,
         globalCoords: newCoords,
         lastDirection: 'up' as const,
-        damagedUpgrades: damagedTarget ? { ...prev.damagedUpgrades, [damagedTarget]: true } : prev.damagedUpgrades
+        jumpDriveDisabled: disableJumpDrive ? true : prev.jumpDriveDisabled
       };
     });
 
-    if (damagedTarget) {
-      const penalty = damagedTarget === 'shields' ? 'Defense dice limited to 1' : (damagedTarget === 'weapons' ? 'Attack dice limited to 1' : 'Cargo access restricted');
-      addLog(`WARNING: Nebula radiation compromised ${damagedTarget} systems! ${penalty}.`);
+    if (disableJumpDrive) {
+      addLog(`WARNING: Nebula radiation has disabled your jump drive! Repair required at the Upgrade Center (64 CR).`);
     }
 
     // Random Encounter
@@ -53,6 +45,10 @@ export function useJump(
 
   const jumpTo = (index: number) => {
     if (!state || isJumping) return;
+    if (state.jumpDriveDisabled) {
+      addLog("Jump drive offline. Repair required at the Upgrade Center.");
+      return;
+    }
     const currentSectorIndex = Math.floor(state.globalCoords.y / 16) * 4 + Math.floor(state.globalCoords.x / 16);
     if (index === currentSectorIndex) return;
 

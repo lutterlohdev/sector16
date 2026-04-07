@@ -21,7 +21,6 @@ export const INITIAL_STATE: GameState = {
   },
   damagedUpgrades: {
     cargo: false,
-    shields: false,
     weapons: false,
     storage: false,
   },
@@ -35,6 +34,7 @@ export const INITIAL_STATE: GameState = {
   hasMetWizard: false,
   hasCloakingSpell: false,
   hasMinerUpgrade: false,
+  jumpDriveDisabled: false,
   wizardCoords: null,
   lastDirection: 'up',
 };

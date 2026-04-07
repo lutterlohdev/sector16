@@ -108,7 +108,6 @@ export function useEncounter(
     const playerPower = currentState.power;
     const playerDef = currentState.defense + (enc.tempDefense || 0);
     const weaponsDamaged = currentState.damagedUpgrades.weapons;
-    const shieldsDamaged = currentState.damagedUpgrades.shields;
 
     let hitChance: number;
     let critChance: number;
@@ -121,7 +120,6 @@ export function useEncounter(
     } else {
       hitChance = calcHitChance(playerDef, enc.power);
       critChance = calcCritChance(playerDef, enc.power);
-      if (shieldsDamaged) hitChance = Math.max(0.15, hitChance - 0.15);
       if (overcharged) hitChance = Math.min(0.95, hitChance + OVERCHARGE_BONUS);
     }
 

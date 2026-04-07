@@ -29,7 +29,6 @@ export interface GameState {
   };
   damagedUpgrades: {
     cargo: boolean;
-    shields: boolean;
     weapons: boolean;
     storage: boolean;
   };
@@ -43,6 +42,7 @@ export interface GameState {
   hasMetWizard: boolean;
   hasCloakingSpell: boolean;
   hasMinerUpgrade: boolean;
+  jumpDriveDisabled: boolean;
   wizardCoords: { x: number; y: number } | null;
   lastDirection: 'up' | 'down' | 'left' | 'right';
 }

@@ -62,19 +62,6 @@ function ChargingOverlay({ isPlayerAttacking }: { isPlayerAttacking: boolean }) 
       className="absolute inset-0 z-10 flex items-center justify-center bg-black/80"
     >
       <div className="text-center space-y-4">
-        <motion.div
-          animate={{
-            scale: [1, 1.3, 1],
-            opacity: [0.5, 1, 0.5],
-          }}
-          transition={{ duration: 0.6, repeat: Infinity }}
-          className={`${isPlayerAttacking ? 'text-orange-400' : 'text-cyan-400'}`}
-        >
-          {isPlayerAttacking
-            ? <Crosshair size={48} strokeWidth={1.5} />
-            : <Shield size={48} strokeWidth={1.5} />
-          }
-        </motion.div>
         <motion.p
           animate={{ opacity: [0.3, 1, 0.3] }}
           transition={{ duration: 0.8, repeat: Infinity }}
