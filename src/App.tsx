@@ -21,7 +21,6 @@ import MapView from './components/MapView';
 import SectorPanel from './components/SectorPanel';
 import InventoryModal from './components/modals/InventoryModal';
 import StorageModal from './components/modals/StorageModal';
-import UpgradeCenterModal from './components/modals/UpgradeCenterModal';
 import DiscoveryModal from './components/modals/DiscoveryModal';
 import WizardModal from './components/modals/WizardModal';
 import EncounterModal from './components/modals/EncounterModal';
@@ -36,7 +35,6 @@ export default function App() {
   // UI state
   const [showInventory, setShowInventory] = useState(false);
   const [showStorage, setShowStorage] = useState(false);
-  const [showUpgradeCenter, setShowUpgradeCenter] = useState(false);
   const [wizardEncounter, setWizardEncounter] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [discovery, setDiscovery] = useState<DiscoveryState | null>(null);
@@ -60,7 +58,7 @@ export default function App() {
   // Trading hook
   const {
     sellAll, sellItem, sellNocturnium,
-    buyUpgrade, repairUpgrade, buyDuctTape
+    buyUpgrade, repairUpgrade, buyDuctTape, installMinerUpgrade
   } = useTrading(state, setState, addLog);
 
   // Keyboard listeners for sub-sector movement
@@ -77,14 +75,13 @@ export default function App() {
       if (e.key === 'ArrowRight') dx = 1;
 
       if (dx !== 0 || dy !== 0) {
-        if (showUpgradeCenter) return;
         moveGlobal(dx, dy);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state, isJumping, encounter, showInventory, discovery, showResetConfirm, showUpgradeCenter, moveGlobal]);
+  }, [state, isJumping, encounter, showInventory, discovery, showResetConfirm, moveGlobal]);
 
   if (!state) return <div className="flex items-center justify-center h-screen bg-black text-white font-mono">LOADING...</div>;
 
@@ -135,12 +132,12 @@ export default function App() {
               isAtStorageLocker={isAtStorageLocker}
               isAtUpgradeCenter={isAtUpgradeCenter}
               onShowStorage={() => setShowStorage(true)}
-              onShowUpgradeCenter={() => setShowUpgradeCenter(true)}
               sellNocturnium={sellNocturnium}
               sellItem={sellItem}
               sellAll={sellAll}
               buyUpgrade={buyUpgrade}
               repairUpgrade={repairUpgrade}
+              installMinerUpgrade={installMinerUpgrade}
               buyDuctTape={buyDuctTape}
             />
           )}
@@ -172,14 +169,6 @@ export default function App() {
             state={state}
             setState={setState}
             onClose={() => setShowStorage(false)}
-          />
-        )}
-
-        {showUpgradeCenter && (
-          <UpgradeCenterModal
-            state={state}
-            setState={setState}
-            onClose={() => setShowUpgradeCenter(false)}
           />
         )}
 

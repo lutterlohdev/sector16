@@ -138,7 +138,7 @@ export function useEncounter(
     if (isPlayerAttacking) {
       if (outcome === 'critical') {
         const newShields = Math.max(0, enc.npcShields - 2);
-        const msg = `⚡ CRITICAL HIT! Volley ${nextVolley}: Tore through their shields! (-2)`;
+        const msg = `CRITICAL HIT! Volley ${nextVolley}: Tore through their shields! (-2)`;
         addLog(msg);
 
         if (newShields <= 0) {
@@ -170,7 +170,7 @@ export function useEncounter(
 
       } else if (outcome === 'hit') {
         const newShields = Math.max(0, enc.npcShields - 1);
-        const msg = `🎯 HIT! Volley ${nextVolley}: Direct hit on their shields. (-1)`;
+        const msg = `HIT! Volley ${nextVolley}: Direct hit on their shields. (-1)`;
         addLog(msg);
 
         if (newShields <= 0) {
@@ -202,7 +202,7 @@ export function useEncounter(
 
       } else {
         // Miss — NPC retaliates, player loses 1 shield
-        const msg = `💨 MISS! Volley ${nextVolley}: Shot went wide. They return fire! (-1 Shield)`;
+        const msg = `MISS! Volley ${nextVolley}: Shot went wide. They return fire! (-1 Shield)`;
         addLog(msg);
 
         const newDefense = currentState.defense - 1;
@@ -251,7 +251,7 @@ export function useEncounter(
     } else {
       // NPC attacking player (defend phase)
       if (outcome === 'critical') {
-        const msg = `🛡️ PERFECT DEFLECT! Volley ${nextVolley}: You turned their shot back on them!`;
+        const msg = `PERFECT DEFLECT! Volley ${nextVolley}: You turned their shot back on them!`;
         addLog(msg);
 
         const newNpcShields = Math.max(0, enc.npcShields - 1);
@@ -284,7 +284,7 @@ export function useEncounter(
         } : null);
 
       } else if (outcome === 'hit') {
-        const msg = `🛡️ DEFLECTED! Volley ${nextVolley}: Shields held. You have the advantage!`;
+        const msg = `DEFLECTED! Volley ${nextVolley}: Shields held. You have the advantage!`;
         addLog(msg);
 
         setEncounter(prev => prev ? {
@@ -301,7 +301,7 @@ export function useEncounter(
 
       } else {
         // Player failed to defend — takes damage
-        const msg = `💥 BREACHED! Volley ${nextVolley}: Their shot punched through!`;
+        const msg = `BREACHED! Volley ${nextVolley}: Their shot punched through!`;
         addLog(msg);
 
         let realLoss = 1;
@@ -371,7 +371,16 @@ export function useEncounter(
     if (action === 'avoid') {
       const chance = state.hasCloakingSpell ? 1.0 : (!encounter.isAmbush ? 1.0 : (encounter.type === 'ruin' ? 0.1 : 0.8));
       if (Math.random() < chance) {
-        addLog(state.hasCloakingSpell ? "Cloaking Spell active: Successfully avoided the encounter." : "Successfully avoided the encounter.");
+        let avoidMsg: string;
+        if (state.hasCloakingSpell) {
+          avoidMsg = "Cloaking Spell active: Successfully avoided the encounter.";
+        } else if (!encounter.isAmbush) {
+          avoidMsg = "No threat detected — slipped away unnoticed.";
+        } else {
+          const pct = Math.round(chance * 100);
+          avoidMsg = `Lucky escape! Beat a ${pct}% chance to avoid ${encounter.name}.`;
+        }
+        addLog(avoidMsg);
         setEncounter(null);
       } else {
         // Failed avoid — force into a defend volley immediately
@@ -424,7 +433,7 @@ export function useEncounter(
       setEncounter(prev => prev ? {
         ...prev,
         overcharged: true,
-        exchangeResult: "⚡ OVERCHARGED! Diverted shield power to weapons. (+15% hit chance, -1 Shield)",
+        exchangeResult: "OVERCHARGED! Diverted shield power to weapons. (+15% hit chance, -1 Shield)",
       } : null);
 
       addLog("Overcharged weapons! Shield energy diverted. (+15% hit, -1 Shield)");

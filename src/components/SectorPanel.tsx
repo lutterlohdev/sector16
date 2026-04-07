@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { GameState, Sector } from '../types';
 import TradeHubPanel from './TradeHubPanel';
+import UpgradeCenterPanel from './UpgradeCenterPanel';
 
 interface SectorPanelProps {
   state: GameState;
@@ -18,12 +19,12 @@ interface SectorPanelProps {
   isAtStorageLocker: boolean;
   isAtUpgradeCenter: boolean;
   onShowStorage: () => void;
-  onShowUpgradeCenter: () => void;
   sellNocturnium: (amount: number) => void;
   sellItem: (index: number) => void;
   sellAll: () => void;
   buyUpgrade: (type: 'cargo' | 'shields' | 'weapons' | 'storage') => void;
   repairUpgrade: (type: 'cargo' | 'shields' | 'weapons' | 'storage') => void;
+  installMinerUpgrade: () => void;
   buyDuctTape: () => void;
 }
 
@@ -33,12 +34,12 @@ export default function SectorPanel({
   isAtStorageLocker,
   isAtUpgradeCenter,
   onShowStorage,
-  onShowUpgradeCenter,
   sellNocturnium,
   sellItem,
   sellAll,
   buyUpgrade,
   repairUpgrade,
+  installMinerUpgrade,
   buyDuctTape,
 }: SectorPanelProps) {
   const isDocked = state.globalCoords.x % 16 === 8 && state.globalCoords.y % 16 === 8;
@@ -109,18 +110,15 @@ export default function SectorPanel({
                 {isAtUpgradeCenter ? (
                   <div className="p-4 border border-green-500/30 bg-green-500/5 space-y-4">
                     <div className="flex justify-between items-center border-b border-green-500/30 pb-2">
-                      <p className="text-sm text-green-400 font-bold uppercase tracking-widest">Upgrade Center Access</p>
+                      <p className="text-sm text-green-400 font-bold uppercase tracking-widest">Upgrade Center</p>
                       <TrendingUp size={16} className="text-green-400" />
                     </div>
-                    <p className="text-[10px] opacity-70 italic">
-                      A specialized facility for permanent ship enhancements.
-                    </p>
-                    <button
-                      onClick={onShowUpgradeCenter}
-                      className="w-full pixel-button py-2 text-xs bg-green-500/20 border-green-500/50 hover:bg-green-500/40"
-                    >
-                      ACCESS UPGRADE CENTER
-                    </button>
+                    <UpgradeCenterPanel
+                      state={state}
+                      buyUpgrade={buyUpgrade}
+                      repairUpgrade={repairUpgrade}
+                      installMinerUpgrade={installMinerUpgrade}
+                    />
                   </div>
                 ) : (
                   <div className="p-6 border border-green-500/20 bg-green-500/5 flex flex-col items-center gap-4 text-center">
@@ -162,8 +160,6 @@ export default function SectorPanel({
                   sellNocturnium={sellNocturnium}
                   sellItem={sellItem}
                   sellAll={sellAll}
-                  buyUpgrade={buyUpgrade}
-                  repairUpgrade={repairUpgrade}
                   buyDuctTape={buyDuctTape}
                 />
               ) : (

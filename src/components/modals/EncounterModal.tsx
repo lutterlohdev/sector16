@@ -37,7 +37,7 @@ function ProbabilityBar({ chance, label, overcharged }: { chance: number; label:
       <div className="flex justify-between text-[10px] uppercase tracking-widest font-mono">
         <span className="opacity-50">{label}</span>
         <span className={`font-bold ${pct >= 60 ? 'text-green-400' : pct >= 40 ? 'text-yellow-400' : 'text-red-400'}`}>
-          {pct}%{overcharged ? ' ⚡' : ''}
+          {pct}%{overcharged ? ' [OC]' : ''}
         </span>
       </div>
       <div className="w-full h-3 bg-red-900/50 relative overflow-hidden border border-white/10">
@@ -68,9 +68,12 @@ function ChargingOverlay({ isPlayerAttacking }: { isPlayerAttacking: boolean }) 
             opacity: [0.5, 1, 0.5],
           }}
           transition={{ duration: 0.6, repeat: Infinity }}
-          className={`text-4xl ${isPlayerAttacking ? 'text-orange-400' : 'text-cyan-400'}`}
+          className={`${isPlayerAttacking ? 'text-orange-400' : 'text-cyan-400'}`}
         >
-          {isPlayerAttacking ? '⚔️' : '🛡️'}
+          {isPlayerAttacking
+            ? <Crosshair size={48} strokeWidth={1.5} />
+            : <Shield size={48} strokeWidth={1.5} />
+          }
         </motion.div>
         <motion.p
           animate={{ opacity: [0.3, 1, 0.3] }}
@@ -304,7 +307,7 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
                     }`}
                     title={`Volley ${v.volley}: ${v.outcome} (${Math.round(v.hitChance * 100)}%)`}
                   >
-                    {v.outcome === 'critical' ? '⚡' : v.outcome === 'hit' ? '✓' : '✗'}
+                    {v.outcome === 'critical' ? '!!' : v.outcome === 'hit' ? '✓' : '✗'}
                   </div>
                 ))}
               </div>
@@ -330,7 +333,7 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
                         'text-red-400'
                       }
                     >
-                      {v.outcome === 'critical' ? '⚡' : v.outcome === 'hit' ? '✓' : '✗'}
+                      {v.outcome === 'critical' ? '!!' : v.outcome === 'hit' ? '✓' : '✗'}
                     </span>
                   ))}
                 </div>

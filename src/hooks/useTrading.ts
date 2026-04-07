@@ -129,5 +129,24 @@ export function useTrading(
     addLog("Purchased Duct Tape.");
   };
 
-  return { sellAll, sellItem, sellNocturnium, buyUpgrade, repairUpgrade, buyDuctTape };
+  const installMinerUpgrade = () => {
+    if (!state) return;
+    const reqIds = [17, 23, 34];
+    if (!reqIds.every(id => state.inventory.some(item => item.id === id))) {
+      addLog("Missing required components.");
+      return;
+    }
+    setState(prev => {
+      if (!prev) return prev;
+      let nextInventory = [...prev.inventory];
+      reqIds.forEach(id => {
+        const index = nextInventory.findIndex(item => item.id === id);
+        if (index !== -1) nextInventory.splice(index, 1);
+      });
+      return { ...prev, inventory: nextInventory, hasMinerUpgrade: true };
+    });
+    addLog("Nocturnium Miner Upgrade installed!");
+  };
+
+  return { sellAll, sellItem, sellNocturnium, buyUpgrade, repairUpgrade, buyDuctTape, installMinerUpgrade };
 }

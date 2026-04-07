@@ -7,8 +7,6 @@ interface TradeHubPanelProps {
   sellNocturnium: (amount: number) => void;
   sellItem: (index: number) => void;
   sellAll: () => void;
-  buyUpgrade: (type: 'cargo' | 'shields' | 'weapons' | 'storage') => void;
-  repairUpgrade: (type: 'cargo' | 'shields' | 'weapons' | 'storage') => void;
   buyDuctTape: () => void;
 }
 
@@ -18,15 +16,9 @@ export default function TradeHubPanel({
   sellNocturnium,
   sellItem,
   sellAll,
-  buyUpgrade,
-  repairUpgrade,
   buyDuctTape,
 }: TradeHubPanelProps) {
-  const basePrice = 16;
-
   // Warning banner logic
-  const weaponsCost = Math.floor(basePrice * Math.pow(2, state.upgrades.weapons));
-  const shieldsCost = Math.floor(basePrice * Math.pow(2, state.upgrades.shields));
   const isWeaponsOffline = state.power <= 0;
   const isShieldsDown = state.defense <= 0;
   const needsWarning = isWeaponsOffline || isShieldsDown || state.damagedUpgrades.weapons || state.damagedUpgrades.shields;
@@ -43,9 +35,7 @@ export default function TradeHubPanel({
             {isShieldsDown && <p>Shields down.</p>}
             {state.damagedUpgrades.shields && !isShieldsDown && <p className="text-yellow-400">Shields compromised: Defense dice limited to 1.</p>}
             <p className="mt-2 text-white not-italic">
-              {((isWeaponsOffline && state.credits >= weaponsCost) || (isShieldsDown && state.credits >= shieldsCost) || state.damagedUpgrades.weapons || state.damagedUpgrades.shields)
-                ? "Recommendation: Use your credits to upgrade your systems immediately."
-                : "Recommendation: Travel to the Asteroid Belt to mine Nocturnium and sell it for upgrades."}
+              Recommendation: Visit the Upgrade Center at The Nocturnal Hub to repair or upgrade your systems.
             </p>
           </div>
         </div>
@@ -131,58 +121,6 @@ export default function TradeHubPanel({
         </div>
       </div>
 
-      {/* Upgrades */}
-      <div className="grid grid-cols-1 gap-2 mt-4">
-        <p className="text-xs border-b border-white pb-1">UPGRADES</p>
-        {(['cargo', 'shields', 'weapons', 'storage'] as const).map(type => {
-          const count = state.upgrades[type] || 0;
-          const cost = Math.floor(basePrice * Math.pow(2, count));
-          const isDamaged = state.damagedUpgrades[type];
-          const repairCost = Math.floor(Math.floor(basePrice * Math.pow(2, count - 1)) * 0.2);
-
-          const displayNames = {
-            cargo: 'Ship Cargo Space',
-            shields: 'Shields',
-            weapons: 'Weapons',
-            storage: 'Locker Storage'
-          };
-
-          const capacityInfo = {
-            cargo: `${state.cargoCapacity} Slots`,
-            shields: `+${state.upgrades.shields} DEF`,
-            weapons: `+${state.upgrades.weapons} PWR`,
-            storage: `${state.storageCapacity} Slots`
-          };
-
-          return (
-            <div key={type} className="flex flex-col gap-2 p-2 border border-white/30">
-              <div className="flex justify-between items-center">
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold uppercase tracking-tighter">{displayNames[type]}</span>
-                  <span className="text-[10px] opacity-50">LVL {count} | {capacityInfo[type]}</span>
-                </div>
-                {isDamaged && <span className="text-red-500 text-[10px] animate-pulse">DAMAGED</span>}
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => buyUpgrade(type)}
-                  className="flex-1 pixel-button text-xs py-1"
-                >
-                  UPGRADE ({cost} CR)
-                </button>
-                {isDamaged && (
-                  <button
-                    onClick={() => repairUpgrade(type)}
-                    className="flex-1 pixel-button text-xs py-1 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
-                  >
-                    REPAIR ({repairCost} CR)
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
