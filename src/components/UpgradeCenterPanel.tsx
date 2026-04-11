@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Check, X } from 'lucide-react';
 import { GameState } from '../types';
 
@@ -19,6 +20,27 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairJumpDrive,
   const isWeaponsOffline = state.power <= 0;
   const isShieldsDown = state.defense <= 0;
   const needsWarning = isWeaponsOffline || isShieldsDown || state.jumpDriveDisabled;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === 'INPUT') return;
+      
+      switch(e.key) {
+        case '1': buyUpgrade('cargo'); break;
+        case '2': buyUpgrade('shields'); break;
+        case '3': buyUpgrade('weapons'); break;
+        case '4': buyUpgrade('storage'); break;
+        case '5': 
+          if (state.jumpDriveDisabled) repairJumpDrive(); 
+          break;
+        case '6': 
+          if (!state.hasMinerUpgrade && hasAllTotal) installMinerUpgrade(); 
+          break;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state.jumpDriveDisabled, state.hasMinerUpgrade, hasAllTotal, buyUpgrade, repairJumpDrive, installMinerUpgrade]);
 
   return (
     <div className="space-y-4">
@@ -68,7 +90,7 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairJumpDrive,
                   onClick={() => buyUpgrade(type)}
                   className="flex-1 pixel-button text-xs py-1"
                 >
-                  UPGRADE ({cost} CR)
+                  [{type === 'cargo' ? '1' : type === 'shields' ? '2' : type === 'weapons' ? '3' : '4'}] UPGRADE ({cost} CR)
                 </button>
               </div>
             </div>
@@ -95,7 +117,7 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairJumpDrive,
               onClick={repairJumpDrive}
               className="w-full pixel-button text-xs py-1 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
             >
-              REPAIR JUMP DRIVE (64 CR)
+              [5] REPAIR JUMP DRIVE (64 CR)
             </button>
           )}
         </div>
@@ -148,7 +170,7 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairJumpDrive,
                   onClick={installMinerUpgrade}
                   className="w-full pixel-button py-2 bg-green-500/20 border-green-500 hover:bg-green-500/40 text-green-400 font-bold uppercase tracking-widest text-xs"
                 >
-                  INSTALL UPGRADE
+                  [6] INSTALL UPGRADE
                 </button>
               ) : (
                 <div className="p-2 border border-white/10 bg-white/5 text-center">

@@ -61,21 +61,49 @@ export default function App() {
     buyUpgrade, repairJumpDrive, buyDuctTape, installMinerUpgrade
   } = useTrading(state, setState, addLog);
 
-  // Keyboard listeners for sub-sector movement
+  // Global keyboard listeners
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!state || isJumping || encounter || showInventory || showResetConfirm || discovery) return;
+      // Ignore keydowns if user is typing in an input field
+      if (document.activeElement?.tagName === 'INPUT') return;
 
-      let dx = 0;
-      let dy = 0;
+      // Global Escape handling for non-critical modals
+      if (e.key === 'Escape') {
+        if (showInventory) setShowInventory(false);
+        if (showStorage) setShowStorage(false);
+        if (showResetConfirm) setShowResetConfirm(false);
+        return; // Don't process other keys if we just closed a modal
+      }
 
-      if (e.key === 'ArrowUp') dy = -1;
-      if (e.key === 'ArrowDown') dy = 1;
-      if (e.key === 'ArrowLeft') dx = -1;
-      if (e.key === 'ArrowRight') dx = 1;
+      // Check if we are currently blocked by a popup that prevents movement/hotkeys
+      const isBlocked = isJumping || encounter || showInventory || showStorage || showResetConfirm || discovery || wizardEncounter;
 
-      if (dx !== 0 || dy !== 0) {
-        moveGlobal(dx, dy);
+      if (!isBlocked && state) {
+        // I or C toggles inventory
+        if (e.key.toLowerCase() === 'i' || e.key.toLowerCase() === 'c') {
+          setShowInventory(true);
+          return;
+        }
+
+        // O opens storage locker if at the right spot
+        if (e.key.toLowerCase() === 'o') {
+          if (currentSector?.name === "Endless Summer Station" && isAtStorageLocker) {
+            setShowStorage(true);
+            return;
+          }
+        }
+
+        let dx = 0;
+        let dy = 0;
+
+        if (e.key === 'ArrowUp') dy = -1;
+        if (e.key === 'ArrowDown') dy = 1;
+        if (e.key === 'ArrowLeft') dx = -1;
+        if (e.key === 'ArrowRight') dx = 1;
+
+        if (dx !== 0 || dy !== 0) {
+          moveGlobal(dx, dy);
+        }
       }
     };
 

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Shield, Zap, Move, Crosshair, ChevronRight } from 'lucide-react';
 import { GameState, EncounterState } from '../../types';
@@ -89,6 +90,45 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
   const isPreBattle = encounter.status === 'waiting' || encounter.status === 'ambushed';
   const canDisengage = encounter.currentVolley >= 1;
   const canOvercharge = state.defense > 1 && !encounter.overcharged && encounter.isPlayerAttacking;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      e.stopPropagation(); // prevent global hotkeys
+      
+      const key = e.key.toLowerCase();
+      
+      if (!isActive) {
+        if (key === 'enter' || key === ' ' || key === 'escape') onClose();
+        return;
+      }
+      
+      if (isCharging) return; 
+
+      if (key === 'd' && (isPreBattle || isBetweenVolleys) && !encounter.usedDuctTape && state.inventory.some(i => i.name === 'Duct Tape')) {
+        onUseDuctTape();
+        return;
+      }
+
+      if (encounter.status === 'waiting') {
+        if ((key === '1' || key === 'a') && totalPower >= 1) onAction('attack');
+        if (key === '3' || key === 'v') onAction('avoid');
+      } else if (encounter.status === 'ambushed') {
+        if (key === '2' || key === 'b') onAction('defend');
+        if (key === '3' || key === 'v') onAction('avoid');
+      } else if (isBetweenVolleys) {
+        if (encounter.isPlayerAttacking) {
+          if ((key === '1' || key === 'a') && totalPower >= 1) onAction('attack');
+          if ((key === '4' || key === 'o') && canOvercharge) onAction('overcharge');
+        } else {
+          if (key === '2' || key === 'b') onAction('defend');
+        }
+        if ((key === '5' || key === 'e') && canDisengage) onAction('disengage');
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isActive, isCharging, isPreBattle, isBetweenVolleys, encounter, totalPower, state.inventory, canDisengage, canOvercharge, onAction, onUseDuctTape, onClose]);
 
   const lastOutcome = encounter.lastOutcome;
   const outcomeColor = lastOutcome === 'critical' ? 'text-cyan-400' : lastOutcome === 'hit' ? 'text-green-400' : lastOutcome === 'miss' ? 'text-red-400' : '';
@@ -190,7 +230,7 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
                 onClick={onUseDuctTape}
                 className="pixel-button w-full py-2 text-[10px] uppercase tracking-widest font-bold"
               >
-                Apply Duct Tape (DEFENSE +1)
+                [D] Apply Duct Tape (DEFENSE +1)
               </button>
             )}
 
@@ -207,7 +247,7 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
                       className="pixel-button flex items-center justify-center gap-2 group disabled:opacity-30"
                     >
                       <Crosshair size={18} className={totalPower >= 1 ? "group-hover:animate-spin" : ""} />
-                      <span>OPEN FIRE</span>
+                      <span>[1] OPEN FIRE</span>
                       <ChevronRight size={14} className="opacity-30" />
                     </button>
                     {totalPower < 1 && (
@@ -215,7 +255,7 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
                     )}
                     <button onClick={() => onAction('avoid')} className="pixel-button flex items-center justify-center gap-2">
                       <Move size={18} />
-                      <span>AVOID ({state.hasCloakingSpell ? '100%' : (!encounter.isAmbush ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%'))} CHANCE)</span>
+                      <span>[3] AVOID ({state.hasCloakingSpell ? '100%' : (!encounter.isAmbush ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%'))} CHANCE)</span>
                     </button>
                   </>
                 )}
@@ -225,12 +265,12 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
                   <>
                     <button onClick={() => onAction('defend')} className="pixel-button flex items-center justify-center gap-2">
                       <Shield size={18} />
-                      <span>BRACE &amp; DEFLECT</span>
+                      <span>[2] BRACE &amp; DEFLECT</span>
                       <ChevronRight size={14} className="opacity-30" />
                     </button>
                     <button onClick={() => onAction('avoid')} className="pixel-button flex items-center justify-center gap-2">
                       <Move size={18} />
-                      <span>AVOID ({state.hasCloakingSpell ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%')} CHANCE)</span>
+                      <span>[3] AVOID ({state.hasCloakingSpell ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%')} CHANCE)</span>
                     </button>
                   </>
                 )}
@@ -246,7 +286,7 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
                           className="pixel-button flex items-center justify-center gap-2 group disabled:opacity-30"
                         >
                           <Crosshair size={18} className={totalPower >= 1 ? "group-hover:animate-spin" : ""} />
-                          <span>PRESS ATTACK</span>
+                          <span>[1] PRESS ATTACK</span>
                           <ChevronRight size={14} className="opacity-30" />
                         </button>
                         {canOvercharge && (
@@ -255,14 +295,14 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
                             className="pixel-button flex items-center justify-center gap-2 text-cyan-400 border-cyan-400/30"
                           >
                             <Zap size={18} />
-                            <span>OVERCHARGE (+15% HIT, -1 SHIELD)</span>
+                            <span>[4] OVERCHARGE (+15% HIT, -1 SHIELD)</span>
                           </button>
                         )}
                       </>
                     ) : (
                       <button onClick={() => onAction('defend')} className="pixel-button flex items-center justify-center gap-2">
                         <Shield size={18} />
-                        <span>BRACE &amp; DEFLECT</span>
+                        <span>[2] BRACE &amp; DEFLECT</span>
                         <ChevronRight size={14} className="opacity-30" />
                       </button>
                     )}
@@ -273,7 +313,7 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
                         className="pixel-button flex items-center justify-center gap-2 opacity-60 hover:opacity-100"
                       >
                         <Move size={18} />
-                        <span>DISENGAGE</span>
+                        <span>[5] DISENGAGE</span>
                       </button>
                     )}
                   </>
@@ -327,7 +367,7 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
               </div>
             )}
 
-            <button onClick={onClose} className="pixel-button w-full">CONTINUE</button>
+            <button onClick={onClose} className="pixel-button w-full">CONTINUE [SPACE]</button>
           </div>
         )}
       </div>

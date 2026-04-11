@@ -22,7 +22,7 @@ export default function InventoryModal({ state, setState, onClose }: InventoryMo
       <div className="w-full max-w-2xl pixel-border bg-black p-6 flex flex-col max-h-[80vh]">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-bold tracking-widest">CARGO HOLD</h3>
-          <button onClick={onClose} className="pixel-button py-1 px-3">CLOSE</button>
+          <button autoFocus onClick={onClose} className="pixel-button py-1 px-3">CLOSE</button>
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-4">

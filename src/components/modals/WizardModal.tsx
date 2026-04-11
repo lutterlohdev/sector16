@@ -39,6 +39,7 @@ export default function WizardModal({ state, setState, addLog, onClose }: Wizard
               Traverse the clouds to find me again when you have what I require."
             </p>
             <button
+              autoFocus
               onClick={() => {
                 setState(prev => prev ? ({ ...prev, hasMetWizard: true, wizardCoords: null }) : null);
                 onClose();
@@ -89,6 +90,7 @@ export default function WizardModal({ state, setState, addLog, onClose }: Wizard
                   "Gotta keep moving... find me again when you have the item."
                 </p>
                 <button
+                  autoFocus
                   onClick={onClose}
                   className="pixel-button w-full py-2 opacity-50"
                 >
