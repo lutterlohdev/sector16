@@ -1,6 +1,7 @@
 import { Dispatch, SetStateAction } from 'react';
 import { GameState, DiscoveryState } from '../types';
-import { SPACE_JUNK } from '../constants';
+import { SECTOR_DROP_CHANCE } from '../constants';
+import { pickLootItem } from '../utils/loot';
 
 interface MovementCallbacks {
   onDiscovery: (d: DiscoveryState) => void;
@@ -47,7 +48,9 @@ export function useMovement(
       }
 
       // Check for encounter chance on move - NO encounters in Trade Hubs or Asteroid Belts
-      let encounterChance = (sector.type === 'Trade Hub' || sector.type === 'Asteroid Belt') ? 0 : 0.05;
+      let encounterChance = 0.05;
+      if (sector.type === 'Trade Hub' || sector.type === 'Asteroid Belt') encounterChance = 0;
+      else if (sector.type === 'The Void') encounterChance = 0.01;
 
       if (encounterChance > 0 && Math.random() < encounterChance) {
         setTimeout(() => callbacks.onTriggerEncounter(sector.type === 'Ruin Sector'), 0);
@@ -87,35 +90,27 @@ export function useMovement(
         };
       }
 
-      // Random item discovery (Rotational Rarity)
-      const itemIndex = nextMoveCount % SPACE_JUNK.length;
-      const candidateItem = SPACE_JUNK[itemIndex];
+      // Random item discovery (Tiered Loot Pools per Sector)
+      const dropChance = SECTOR_DROP_CHANCE[sector.type] ?? 0;
 
-      const baseOdds = candidateItem.value / 2;
+      if (dropChance > 0 && Math.random() < dropChance) {
+        const foundItem = pickLootItem(sector.type, prev);
 
-      let sectorMultiplier = 1;
-      if (sector.type === 'Ship Graveyard') sectorMultiplier = 4;
-      if (sector.type === 'Ruin Sector') sectorMultiplier = 2;
-      if (sector.type === 'Trade Hub' || sector.type === 'Asteroid Belt') sectorMultiplier = 0;
-
-      const successThreshold = sectorMultiplier;
-
-      const foundItem = (Math.random() * baseOdds < successThreshold) ? candidateItem : null;
-
-      if (foundItem) {
-        setTimeout(() => callbacks.onDiscovery({
-          title: "DISCOVERY",
-          message: `You found ${foundItem.name} drifting in the sector!`,
-          item: foundItem
-        }), 0);
-        return {
-          ...prev,
-          globalCoords: { x: newX, y: newY },
-          lastDirection,
-          moveCount: nextMoveCount,
-          log: nextLog,
-          jumpDriveDisabled: nextJumpDriveDisabled
-        };
+        if (foundItem) {
+          setTimeout(() => callbacks.onDiscovery({
+            title: "DISCOVERY",
+            message: `You found ${foundItem.name} drifting in the sector!`,
+            item: foundItem
+          }), 0);
+          return {
+            ...prev,
+            globalCoords: { x: newX, y: newY },
+            lastDirection,
+            moveCount: nextMoveCount,
+            log: nextLog,
+            jumpDriveDisabled: nextJumpDriveDisabled
+          };
+        }
       }
 
       return {

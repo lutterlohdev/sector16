@@ -19,11 +19,7 @@ export const INITIAL_STATE: GameState = {
     weapons: 0,
     storage: 0,
   },
-  damagedUpgrades: {
-    cargo: false,
-    weapons: false,
-    storage: false,
-  },
+
   moveCount: 0,
   log: ["System Initialized. Welcome to Sector 16."],
   storageLocker: [],

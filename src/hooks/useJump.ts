@@ -4,8 +4,7 @@ import { GameState } from '../types';
 export function useJump(
   state: GameState | null,
   setState: Dispatch<SetStateAction<GameState | null>>,
-  addLog: (msg: string) => void,
-  triggerEncounter: (isRuin: boolean) => void
+  addLog: (msg: string) => void
 ) {
   const [isJumping, setIsJumping] = useState(false);
   const [jumpProgress, setJumpProgress] = useState(0);
@@ -36,11 +35,6 @@ export function useJump(
       addLog(`WARNING: Nebula radiation has disabled your jump drive! Repair required at the Upgrade Center (64 CR).`);
     }
 
-    // Random Encounter
-    const encounterChance = (newSector.type === 'Trade Hub') ? 0 : 0.05;
-    if (encounterChance > 0 && Math.random() < encounterChance) {
-      triggerEncounter(newSector.type === 'Ruin Sector');
-    }
   };
 
   const jumpTo = (index: number) => {

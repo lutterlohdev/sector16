@@ -27,11 +27,7 @@ export interface GameState {
     weapons: number;
     storage: number;
   };
-  damagedUpgrades: {
-    cargo: boolean;
-    weapons: boolean;
-    storage: boolean;
-  };
+
   moveCount: number;
   log: string[];
   storageLocker: Item[];
@@ -91,4 +87,13 @@ export interface DiscoveryState {
   item?: Item;
   nocturniumYield?: number;
   isHazard?: boolean;
+}
+
+export interface LootTier {
+  weight: number;
+  pool: number[];
+}
+
+export interface SectorLootTable {
+  tiers: LootTier[];
 }

@@ -89,24 +89,7 @@ export function useTrading(
     }
   };
 
-  const repairUpgrade = (type: 'cargo' | 'weapons' | 'storage') => {
-    if (!state || !state.damagedUpgrades[type]) return;
-    const basePrice = 16;
-    const count = state.upgrades[type];
-    const currentCost = Math.floor(basePrice * Math.pow(2, count - 1));
-    const repairCost = Math.floor(currentCost * 0.2);
 
-    if (state.credits >= repairCost) {
-      setState(prev => prev ? ({
-        ...prev,
-        credits: prev.credits - repairCost,
-        damagedUpgrades: { ...prev.damagedUpgrades, [type]: false }
-      }) : null);
-      addLog(`Repaired ${type} systems for ${repairCost} credits.`);
-    } else {
-      addLog("Insufficient credits for repair.");
-    }
-  };
 
   const buyDuctTape = () => {
     if (!state) return;
@@ -147,21 +130,27 @@ export function useTrading(
   const installMinerUpgrade = () => {
     if (!state) return;
     const reqIds = [17, 23, 34];
-    if (!reqIds.every(id => state.inventory.some(item => item.id === id))) {
+    if (!reqIds.every(id => state.inventory.some(item => item.id === id) || state.storageLocker.some(item => item.id === id))) {
       addLog("Missing required components.");
       return;
     }
     setState(prev => {
       if (!prev) return prev;
       let nextInventory = [...prev.inventory];
+      let nextStorage = [...prev.storageLocker];
       reqIds.forEach(id => {
-        const index = nextInventory.findIndex(item => item.id === id);
-        if (index !== -1) nextInventory.splice(index, 1);
+        const invIndex = nextInventory.findIndex(item => item.id === id);
+        if (invIndex !== -1) {
+          nextInventory.splice(invIndex, 1);
+        } else {
+          const storeIndex = nextStorage.findIndex(item => item.id === id);
+          if (storeIndex !== -1) nextStorage.splice(storeIndex, 1);
+        }
       });
-      return { ...prev, inventory: nextInventory, hasMinerUpgrade: true };
+      return { ...prev, inventory: nextInventory, storageLocker: nextStorage, hasMinerUpgrade: true };
     });
     addLog("Nocturnium Miner Upgrade installed!");
   };
 
-  return { sellAll, sellItem, sellNocturnium, buyUpgrade, repairUpgrade, repairJumpDrive, buyDuctTape, installMinerUpgrade };
+  return { sellAll, sellItem, sellNocturnium, buyUpgrade, repairJumpDrive, buyDuctTape, installMinerUpgrade };
 }

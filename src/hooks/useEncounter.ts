@@ -58,9 +58,20 @@ export function useEncounter(
   const awardVictory = useCallback((enc: EncounterState) => {
     if (!state) return;
 
+    // Derive the sector type from player's current position
+    const gc = state.globalCoords;
+    const sectorIndex = Math.floor(gc.y / 16) * 4 + Math.floor(gc.x / 16);
+    const currentSectorType = state.map[sectorIndex].type;
+
     const loot = enc.credits;
-    const foundItem = rollCombatLoot(enc.type);
+    const foundItem = rollCombatLoot(enc.type, currentSectorType, state);
     const noctLoot = Math.floor(Math.random() * 9);
+    
+    let nocturniumAdded = 0;
+    const spaceLeft = state.cargoCapacity - state.inventory.length - state.nocturnium - (foundItem ? 1 : 0);
+    if (spaceLeft > 0) {
+      nocturniumAdded = Math.min(noctLoot, spaceLeft);
+    }
 
     setState(s => {
       if (!s) return s;
@@ -72,13 +83,7 @@ export function useEncounter(
         nextInventory.push(foundItem);
       }
 
-      for (let i = 0; i < noctLoot; i++) {
-        if ((nextInventory.length + nextNocturnium) < s.cargoCapacity) {
-          nextNocturnium++;
-        } else {
-          break;
-        }
-      }
+      nextNocturnium += nocturniumAdded;
 
       return {
         ...s,
@@ -88,7 +93,7 @@ export function useEncounter(
       };
     });
 
-    const msg = `VICTORY! You destroyed ${enc.name} and looted ${loot} credits.${foundItem ? ` Salvaged: ${foundItem.name}` : ''}${noctLoot > 0 ? ` Found ${noctLoot} Nocturnium.` : ''}`;
+    const msg = `VICTORY! You destroyed ${enc.name} and looted ${loot} credits.${foundItem ? ` Salvaged: ${foundItem.name}` : ''}${nocturniumAdded > 0 ? ` Found ${nocturniumAdded} Nocturnium.` : ''}`;
     addLog(msg);
     setEncounter(prev => prev ? { ...prev, npcShields: 0, result: msg, status: 'finished' } : null);
   }, [state, setState, addLog]);
@@ -107,7 +112,6 @@ export function useEncounter(
   const executeVolley = useCallback((enc: EncounterState, currentState: GameState, isPlayerAttacking: boolean, overcharged: boolean) => {
     const playerPower = currentState.power;
     const playerDef = currentState.defense + (enc.tempDefense || 0);
-    const weaponsDamaged = currentState.damagedUpgrades.weapons;
 
     let hitChance: number;
     let critChance: number;
@@ -115,7 +119,6 @@ export function useEncounter(
     if (isPlayerAttacking) {
       hitChance = calcHitChance(playerPower, enc.npcShields);
       critChance = calcCritChance(playerPower, enc.npcShields);
-      if (weaponsDamaged) hitChance = Math.max(0.15, hitChance - 0.15);
       if (overcharged) hitChance = Math.min(0.95, hitChance + OVERCHARGE_BONUS);
     } else {
       hitChance = calcHitChance(playerDef, enc.power);

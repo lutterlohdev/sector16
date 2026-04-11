@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Item, SectorType } from "./types";
+import { Item, SectorType, SectorLootTable } from "./types";
 
 export const SECTOR_DISTRIBUTION: SectorType[] = [
   'Trade Hub', 'Trade Hub',
@@ -98,3 +98,53 @@ export const NPC_NAMES_SUFFIX = [
   "Scout", "Sentinel", "Guardian", "Protector", "Warden", "Enforcer", "Executioner", "Assassin", "Hunter", "Stalker",
   "Predator"
 ];
+
+/** Base drop chance per move for each discoverable sector */
+export const SECTOR_DROP_CHANCE: Partial<Record<SectorType, number>> = {
+  'Ship Graveyard': 0.06,
+  'The Void': 0.04,
+  'Nebula': 0.03,
+  'Ruin Sector': 0.04,
+};
+
+/** Unique legendary item ids (61–64). Only one of each can exist in cargo at a time. */
+export const UNIQUE_ITEM_IDS = [61, 62, 63, 64];
+
+/**
+ * Tiered loot tables per sector.
+ * Each sector has three tiers (common, mid, legendary) with weighted random selection.
+ */
+export const SECTOR_LOOT_TABLES: Partial<Record<SectorType, SectorLootTable>> = {
+  // Ship Graveyard — old battlefield, sunken ships, salvage
+  'Ship Graveyard': {
+    tiers: [
+      { weight: 65, pool: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30] },
+      { weight: 30, pool: [31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48] },
+      { weight: 5,  pool: [51,55,56,62] },
+    ],
+  },
+  // The Void — deep space, drifting, unclaimed, eerie
+  'The Void': {
+    tiers: [
+      { weight: 50, pool: [17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40] },
+      { weight: 38, pool: [41,42,43,44,45,46,47,48,49,50,51,52,53,54] },
+      { weight: 12, pool: [53,54,57,58] },
+    ],
+  },
+  // Nebula — exotic, alien, cosmic, crystalline
+  'Nebula': {
+    tiers: [
+      { weight: 30, pool: [31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48] },
+      { weight: 45, pool: [49,50,51,52,53,54,59,60] },
+      { weight: 25, pool: [61,63,64] },
+    ],
+  },
+  // Ruin Sector — pre-war military, encrypted, dangerous tech
+  'Ruin Sector': {
+    tiers: [
+      { weight: 35, pool: [17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40] },
+      { weight: 45, pool: [41,42,43,44,45,46,47,48,49,50,51,52,53,54] },
+      { weight: 20, pool: [49,50,52,59,60] },
+    ],
+  },
+};

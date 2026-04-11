@@ -53,12 +53,12 @@ export default function App() {
   });
 
   // Jump hook
-  const { isJumping, jumpProgress, jumpTo } = useJump(state, setState, addLog, triggerEncounter);
+  const { isJumping, jumpProgress, jumpTo } = useJump(state, setState, addLog);
 
   // Trading hook
   const {
     sellAll, sellItem, sellNocturnium,
-    buyUpgrade, repairUpgrade, repairJumpDrive, buyDuctTape, installMinerUpgrade
+    buyUpgrade, repairJumpDrive, buyDuctTape, installMinerUpgrade
   } = useTrading(state, setState, addLog);
 
   // Keyboard listeners for sub-sector movement
@@ -136,7 +136,6 @@ export default function App() {
               sellItem={sellItem}
               sellAll={sellAll}
               buyUpgrade={buyUpgrade}
-              repairUpgrade={repairUpgrade}
               repairJumpDrive={repairJumpDrive}
               installMinerUpgrade={installMinerUpgrade}
               buyDuctTape={buyDuctTape}

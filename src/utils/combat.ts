@@ -1,5 +1,6 @@
-import { GameState, Item, EncounterState, VolleyOutcome } from '../types';
-import { NPC_NAMES_PREFIX, NPC_NAMES_SUFFIX, SPACE_JUNK } from '../constants';
+import { GameState, Item, EncounterState, VolleyOutcome, SectorType } from '../types';
+import { NPC_NAMES_PREFIX, NPC_NAMES_SUFFIX } from '../constants';
+import { pickLootItem } from './loot';
 
 /** Calculate the base hit chance for an attacker vs a defender */
 export const calcHitChance = (attackStat: number, defenseStat: number): number => {
@@ -110,21 +111,15 @@ export const triggerDeath = (prev: GameState): GameState => {
     inventory: nextInventory,
     nocturnium: nextNocturnium,
     globalCoords: hubCoords,
-    upgrades: { ...prev.upgrades, cargo: 0, shields: 0, weapons: 0 },
-    damagedUpgrades: { cargo: false, weapons: false, storage: false },
+
     cargoCapacity: newCapacity,
     jumpDriveDisabled: false
   };
 };
 
-export const rollCombatLoot = (encounterType: 'pirate' | 'ruin'): Item | null => {
+export const rollCombatLoot = (encounterType: 'pirate' | 'ruin', sectorType: SectorType, gameState: GameState): Item | null => {
   if (Math.random() < (encounterType === 'ruin' ? 0.8 : 0.3)) {
-    const candidate = SPACE_JUNK[Math.floor(Math.random() * SPACE_JUNK.length)];
-    const baseOdds = candidate.value / 4;
-    const successThreshold = 2;
-    if (Math.random() * baseOdds < successThreshold) {
-      return candidate;
-    }
+    return pickLootItem(sectorType, gameState);
   }
   return null;
 };

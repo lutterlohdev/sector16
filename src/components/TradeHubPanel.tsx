@@ -21,7 +21,7 @@ export default function TradeHubPanel({
   // Warning banner logic
   const isWeaponsOffline = state.power <= 0;
   const isShieldsDown = state.defense <= 0;
-  const needsWarning = isWeaponsOffline || isShieldsDown || state.damagedUpgrades.weapons || state.jumpDriveDisabled;
+  const needsWarning = isWeaponsOffline || isShieldsDown || state.jumpDriveDisabled;
 
   return (
     <div className="space-y-4">
@@ -31,7 +31,6 @@ export default function TradeHubPanel({
           <p className="text-xs text-yellow-400 font-bold mb-1 uppercase tracking-tighter">Warning: Systems Compromised</p>
           <div className="text-[10px] opacity-70 italic space-y-1">
             {isWeaponsOffline && <p>Weapons systems offline.</p>}
-            {state.damagedUpgrades.weapons && !isWeaponsOffline && <p className="text-yellow-400">Weapons compromised: Attack dice limited to 1.</p>}
             {isShieldsDown && <p>Shields down.</p>}
             {state.jumpDriveDisabled && <p className="text-red-400">Jump drive offline: Cannot jump between sectors. Repair at the Upgrade Center.</p>}
             <p className="mt-2 text-white not-italic">

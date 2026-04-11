@@ -7,12 +7,11 @@ interface UpgradeCenterModalProps {
   state: GameState;
   setState: Dispatch<SetStateAction<GameState | null>>;
   buyUpgrade: (type: 'cargo' | 'shields' | 'weapons' | 'storage') => void;
-  repairUpgrade: (type: 'cargo' | 'weapons' | 'storage') => void;
   repairJumpDrive: () => void;
   onClose: () => void;
 }
 
-export default function UpgradeCenterModal({ state, setState, buyUpgrade, repairUpgrade, repairJumpDrive, onClose }: UpgradeCenterModalProps) {
+export default function UpgradeCenterModal({ state, setState, buyUpgrade, repairJumpDrive, onClose }: UpgradeCenterModalProps) {
   const basePrice = 16;
   const reqIds = [17, 23, 34];
   const hasAllInInventory = reqIds.every(id => state.inventory.some(item => item.id === id));
@@ -38,12 +37,11 @@ export default function UpgradeCenterModal({ state, setState, buyUpgrade, repair
         <div className="flex-1 overflow-y-auto space-y-6 pr-2">
 
           {/* Warning banner for damaged systems */}
-          {(state.power <= 0 || state.defense <= 0 || state.damagedUpgrades.weapons || state.jumpDriveDisabled) && (
+          {(state.power <= 0 || state.defense <= 0 || state.jumpDriveDisabled) && (
             <div className="p-3 border border-yellow-500/30 bg-yellow-500/5">
               <p className="text-xs text-yellow-400 font-bold mb-1 uppercase tracking-tighter">Warning: Systems Compromised</p>
               <div className="text-[10px] opacity-70 italic space-y-1">
                 {state.power <= 0 && <p>Weapons systems offline.</p>}
-                {state.damagedUpgrades.weapons && state.power > 0 && <p className="text-yellow-400">Weapons compromised: Attack limited.</p>}
                 {state.defense <= 0 && <p>Shields down.</p>}
                 {state.jumpDriveDisabled && <p className="text-red-400">Jump drive offline: Navigation disabled. Repair required.</p>}
               </div>
@@ -56,8 +54,6 @@ export default function UpgradeCenterModal({ state, setState, buyUpgrade, repair
             {(['cargo', 'shields', 'weapons', 'storage'] as const).map(type => {
               const count = state.upgrades[type] || 0;
               const cost = Math.floor(basePrice * Math.pow(2, count));
-              const isDamaged = type !== 'shields' ? state.damagedUpgrades[type as 'cargo' | 'weapons' | 'storage'] : false;
-              const repairCost = Math.floor(Math.floor(basePrice * Math.pow(2, count - 1)) * 0.2);
 
               const displayNames: Record<string, string> = {
                 cargo: 'Ship Cargo Space',
@@ -80,7 +76,6 @@ export default function UpgradeCenterModal({ state, setState, buyUpgrade, repair
                       <span className="text-xs font-bold uppercase tracking-tighter">{displayNames[type]}</span>
                       <span className="text-[10px] opacity-50">LVL {count} | {capacityInfo[type]}</span>
                     </div>
-                    {isDamaged && <span className="text-red-500 text-[10px] animate-pulse">DAMAGED</span>}
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -89,14 +84,6 @@ export default function UpgradeCenterModal({ state, setState, buyUpgrade, repair
                     >
                       UPGRADE ({cost} CR)
                     </button>
-                    {isDamaged && (
-                      <button
-                        onClick={() => repairUpgrade(type as 'cargo' | 'weapons' | 'storage')}
-                        className="flex-1 pixel-button text-xs py-1 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
-                      >
-                        REPAIR ({repairCost} CR)
-                      </button>
-                    )}
                   </div>
                 </div>
               );
@@ -168,30 +155,29 @@ export default function UpgradeCenterModal({ state, setState, buyUpgrade, repair
                   })}
                 </div>
 
-                {hasAllInInventory ? (
+                {hasAllTotal ? (
                   <button
                     onClick={() => {
                       setState(prev => {
                         if (!prev) return prev;
                         let nextInventory = [...prev.inventory];
+                        let nextStorage = [...prev.storageLocker];
                         reqIds.forEach(id => {
-                          const index = nextInventory.findIndex(item => item.id === id);
-                          if (index !== -1) {
-                            nextInventory.splice(index, 1);
+                          const invIndex = nextInventory.findIndex(item => item.id === id);
+                          if (invIndex !== -1) {
+                            nextInventory.splice(invIndex, 1);
+                          } else {
+                            const storeIndex = nextStorage.findIndex(item => item.id === id);
+                            if (storeIndex !== -1) nextStorage.splice(storeIndex, 1);
                           }
                         });
-                        return { ...prev, inventory: nextInventory, hasMinerUpgrade: true };
+                        return { ...prev, inventory: nextInventory, storageLocker: nextStorage, hasMinerUpgrade: true };
                       });
                     }}
                     className="w-full pixel-button py-3 bg-green-500/20 border-green-500 hover:bg-green-500/40 text-green-400 font-bold uppercase tracking-widest"
                   >
                     INSTALL UPGRADE
                   </button>
-                ) : hasAllTotal ? (
-                  <div className="p-3 border border-yellow-500/30 bg-yellow-500/5 text-center">
-                    <p className="text-[10px] text-yellow-500 uppercase font-bold">All components located, but some are in storage.</p>
-                    <p className="text-[10px] opacity-70 mt-1">Retrieve all items to your cargo hold to install the upgrade.</p>
-                  </div>
                 ) : (
                   <div className="p-3 border border-white/10 bg-white/5 text-center">
                     <p className="text-[10px] opacity-50 uppercase font-bold">Insufficient Components</p>

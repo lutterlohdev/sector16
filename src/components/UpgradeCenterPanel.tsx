@@ -4,12 +4,11 @@ import { GameState } from '../types';
 interface UpgradeCenterPanelProps {
   state: GameState;
   buyUpgrade: (type: 'cargo' | 'shields' | 'weapons' | 'storage') => void;
-  repairUpgrade: (type: 'cargo' | 'weapons' | 'storage') => void;
   repairJumpDrive: () => void;
   installMinerUpgrade: () => void;
 }
 
-export default function UpgradeCenterPanel({ state, buyUpgrade, repairUpgrade, repairJumpDrive, installMinerUpgrade }: UpgradeCenterPanelProps) {
+export default function UpgradeCenterPanel({ state, buyUpgrade, repairJumpDrive, installMinerUpgrade }: UpgradeCenterPanelProps) {
   const basePrice = 16;
   const reqIds = [17, 23, 34];
   const hasAllInInventory = reqIds.every(id => state.inventory.some(item => item.id === id));
@@ -19,7 +18,7 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairUpgrade, r
 
   const isWeaponsOffline = state.power <= 0;
   const isShieldsDown = state.defense <= 0;
-  const needsWarning = isWeaponsOffline || isShieldsDown || state.damagedUpgrades.weapons || state.jumpDriveDisabled;
+  const needsWarning = isWeaponsOffline || isShieldsDown || state.jumpDriveDisabled;
 
   return (
     <div className="space-y-4">
@@ -29,7 +28,6 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairUpgrade, r
           <p className="text-xs text-yellow-400 font-bold mb-1 uppercase tracking-tighter">Warning: Systems Compromised</p>
           <div className="text-[10px] opacity-70 italic space-y-1">
             {isWeaponsOffline && <p>Weapons systems offline.</p>}
-            {state.damagedUpgrades.weapons && !isWeaponsOffline && <p className="text-yellow-400">Weapons compromised: Attack limited.</p>}
             {isShieldsDown && <p>Shields down.</p>}
             {state.jumpDriveDisabled && <p className="text-red-400">Jump drive offline: Navigation disabled. Repair required.</p>}
           </div>
@@ -42,8 +40,6 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairUpgrade, r
         {(['cargo', 'shields', 'weapons', 'storage'] as const).map(type => {
           const count = state.upgrades[type] || 0;
           const cost = Math.floor(basePrice * Math.pow(2, count));
-          const isDamaged = type !== 'shields' ? state.damagedUpgrades[type as 'cargo' | 'weapons' | 'storage'] : false;
-          const repairCost = Math.floor(Math.floor(basePrice * Math.pow(2, count - 1)) * 0.2);
 
           const displayNames: Record<string, string> = {
             cargo: 'Ship Cargo Space',
@@ -66,7 +62,6 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairUpgrade, r
                   <span className="text-xs font-bold uppercase tracking-tighter">{displayNames[type]}</span>
                   <span className="text-[10px] opacity-50">LVL {count} | {capacityInfo[type]}</span>
                 </div>
-                {isDamaged && <span className="text-red-500 text-[10px] animate-pulse">DAMAGED</span>}
               </div>
               <div className="flex gap-2">
                 <button
@@ -75,14 +70,6 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairUpgrade, r
                 >
                   UPGRADE ({cost} CR)
                 </button>
-                {isDamaged && (
-                  <button
-                    onClick={() => repairUpgrade(type as 'cargo' | 'weapons' | 'storage')}
-                    className="flex-1 pixel-button text-xs py-1 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
-                  >
-                    REPAIR ({repairCost} CR)
-                  </button>
-                )}
               </div>
             </div>
           );
@@ -156,17 +143,13 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairUpgrade, r
                 })}
               </div>
 
-              {hasAllInInventory ? (
+              {hasAllTotal ? (
                 <button
                   onClick={installMinerUpgrade}
                   className="w-full pixel-button py-2 bg-green-500/20 border-green-500 hover:bg-green-500/40 text-green-400 font-bold uppercase tracking-widest text-xs"
                 >
                   INSTALL UPGRADE
                 </button>
-              ) : hasAllTotal ? (
-                <div className="p-2 border border-yellow-500/30 bg-yellow-500/5 text-center">
-                  <p className="text-[10px] text-yellow-500 uppercase font-bold">Components in storage — move to cargo to install.</p>
-                </div>
               ) : (
                 <div className="p-2 border border-white/10 bg-white/5 text-center">
                   <p className="text-[10px] opacity-50 uppercase">Scavenge for missing components.</p>

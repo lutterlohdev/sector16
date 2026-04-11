@@ -14,8 +14,7 @@ export function useGameState() {
         let nextState = {
           ...INITIAL_STATE,
           ...parsed,
-          upgrades: { ...INITIAL_STATE.upgrades, ...(parsed.upgrades || {}) },
-          damagedUpgrades: { ...INITIAL_STATE.damagedUpgrades, ...(parsed.damagedUpgrades || {}) }
+
         };
 
         if (!nextState.map || nextState.map.length === 0) {

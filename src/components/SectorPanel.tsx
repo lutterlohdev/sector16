@@ -23,7 +23,7 @@ interface SectorPanelProps {
   sellItem: (index: number) => void;
   sellAll: () => void;
   buyUpgrade: (type: 'cargo' | 'shields' | 'weapons' | 'storage') => void;
-  repairUpgrade: (type: 'cargo' | 'weapons' | 'storage') => void;
+
   repairJumpDrive: () => void;
   installMinerUpgrade: () => void;
   buyDuctTape: () => void;
@@ -39,7 +39,6 @@ export default function SectorPanel({
   sellItem,
   sellAll,
   buyUpgrade,
-  repairUpgrade,
   repairJumpDrive,
   installMinerUpgrade,
   buyDuctTape,
@@ -118,7 +117,6 @@ export default function SectorPanel({
                     <UpgradeCenterPanel
                       state={state}
                       buyUpgrade={buyUpgrade}
-                      repairUpgrade={repairUpgrade}
                       repairJumpDrive={repairJumpDrive}
                       installMinerUpgrade={installMinerUpgrade}
                     />
