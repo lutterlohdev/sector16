@@ -51,6 +51,7 @@ export default function DiscoveryModal({ state, setState, discovery, addLog, onC
         {discovery.isHazard ? (
           <div className="flex flex-col gap-2">
             <button
+              autoFocus
               onClick={onClose}
               className="pixel-button w-full py-2 bg-red-500/20 border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
             >
@@ -60,6 +61,7 @@ export default function DiscoveryModal({ state, setState, discovery, addLog, onC
         ) : (
           <div className="flex flex-col gap-2">
             <button
+              autoFocus
               onClick={() => {
                 const yield_ = discovery.nocturniumYield || 0;
                 const item = discovery.item;

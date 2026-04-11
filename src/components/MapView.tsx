@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import {
   Zap,
@@ -19,6 +20,24 @@ interface MapViewProps {
 }
 
 export default function MapView({ state, currentSector, onJumpTo, isJumping }: MapViewProps) {
+  const jumpButtonsRef = useRef<(HTMLButtonElement | null)[]>([]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input
+      if (document.activeElement?.tagName === 'INPUT') return;
+      if (e.key.toLowerCase() === 'j') {
+        if (!state.jumpDriveDisabled && !isJumping) {
+          // Find the first valid button to focus, or the current sector jump button
+          const focusable = jumpButtonsRef.current.find(b => b && !b.disabled);
+          if (focusable) focusable.focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state.jumpDriveDisabled, isJumping]);
+
   return (
     <div className="w-1/2 p-4 border-r-2 border-white overflow-hidden bg-black relative flex flex-col">
       <div className="mb-4 flex justify-between items-center px-2">
@@ -128,9 +147,10 @@ export default function MapView({ state, currentSector, onJumpTo, isJumping }: M
                 return (
                   <button
                     key={i}
+                    ref={el => jumpButtonsRef.current[i] = el}
                     onClick={() => onJumpTo(i)}
                     disabled={isJumping || isCurrent || state.jumpDriveDisabled}
-                    className={`w-6 h-6 text-[8px] flex items-center justify-center border ${isCurrent ? 'bg-white text-black' : state.jumpDriveDisabled ? 'border-red-500/30 opacity-40 cursor-not-allowed' : 'border-white/30 hover:bg-white/10'}`}
+                    className={`w-6 h-6 text-[8px] flex items-center justify-center border ${isCurrent ? 'bg-white text-black' : state.jumpDriveDisabled ? 'border-red-500/30 opacity-40 cursor-not-allowed' : 'border-white/30 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white focus:bg-white/20'}`}
                   >
                     {s.coords.r}.{s.coords.c}
                   </button>

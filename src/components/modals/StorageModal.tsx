@@ -23,7 +23,7 @@ export default function StorageModal({ state, setState, onClose }: StorageModalP
             <h3 className="text-xl font-bold tracking-widest uppercase">Storage Locker</h3>
             <span className="text-[10px] opacity-50">SECURE FACILITY - {state.storageLocker.length} / {state.storageCapacity} SLOTS</span>
           </div>
-          <button onClick={onClose} className="pixel-button py-1 px-3">CLOSE</button>
+          <button autoFocus onClick={onClose} className="pixel-button py-1 px-3">CLOSE</button>
         </div>
 
         <div className="grid grid-cols-2 gap-6 flex-1 overflow-hidden">

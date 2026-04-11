@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { TrendingUp } from 'lucide-react';
 import { GameState, Sector } from '../types';
 
@@ -22,6 +23,30 @@ export default function TradeHubPanel({
   const isWeaponsOffline = state.power <= 0;
   const isShieldsDown = state.defense <= 0;
   const needsWarning = isWeaponsOffline || isShieldsDown || state.jumpDriveDisabled;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if in input
+      if (document.activeElement?.tagName === 'INPUT') return;
+      
+      switch(e.key) {
+        case '1':
+          if (state.nocturnium >= 1) sellNocturnium(1);
+          break;
+        case '2':
+          if (state.nocturnium >= 1) sellNocturnium(state.nocturnium);
+          break;
+        case '3':
+          if (state.nocturnium > 0 || state.inventory.length > 0) sellAll();
+          break;
+        case '4':
+          if (state.credits >= 64) buyDuctTape();
+          break;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state, sellNocturnium, sellAll, buyDuctTape]);
 
   return (
     <div className="space-y-4">
@@ -63,14 +88,14 @@ export default function TradeHubPanel({
               disabled={state.nocturnium < 1}
               className="pixel-button text-[10px] py-1 disabled:opacity-30"
             >
-              SELL 1 (3 CR)
+              [1] SELL 1 (3 CR)
             </button>
             <button
               onClick={() => sellNocturnium(state.nocturnium)}
               disabled={state.nocturnium < 1}
               className="pixel-button text-[10px] py-1 disabled:opacity-30"
             >
-              SELL ALL ({state.nocturnium * 3} CR)
+              [2] SELL ALL ({state.nocturnium * 3} CR)
             </button>
           </div>
         </div>
@@ -99,7 +124,7 @@ export default function TradeHubPanel({
           disabled={state.nocturnium === 0 && state.inventory.length === 0}
           className="pixel-button w-full text-xs py-2 bg-white text-black hover:bg-white/80 disabled:opacity-30"
         >
-          LIQUIDATE ALL CARGO
+          [3] LIQUIDATE ALL CARGO
         </button>
       </div>
 
@@ -115,7 +140,7 @@ export default function TradeHubPanel({
             onClick={buyDuctTape}
             className="pixel-button text-xs py-1 px-4"
           >
-            BUY (64 CR)
+            [4] BUY (64 CR)
           </button>
         </div>
       </div>
