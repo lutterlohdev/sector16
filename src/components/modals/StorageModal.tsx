@@ -33,7 +33,9 @@ export default function StorageModal({ state, setState, onClose }: StorageModalP
             <div className="flex-1 overflow-y-auto space-y-2 pr-2">
               {state.inventory.map((item, i) => (
                 <div key={i} className="flex justify-between items-center p-2 border border-white/10 text-[10px]">
-                  <span className="truncate flex-1 mr-2">{item.name}</span>
+                  <span className="truncate flex-1 mr-2">
+                    {item.name} <span className="text-yellow-500/70">({item.value} CR)</span>
+                  </span>
                   <button
                     onClick={() => {
                       if (state.storageLocker.length < state.storageCapacity) {
@@ -62,7 +64,9 @@ export default function StorageModal({ state, setState, onClose }: StorageModalP
             <div className="flex-1 overflow-y-auto space-y-2 pr-2">
               {state.storageLocker.map((item, i) => (
                 <div key={i} className="flex justify-between items-center p-2 border border-blue-500/20 text-[10px]">
-                  <span className="truncate flex-1 mr-2">{item.name}</span>
+                  <span className="truncate flex-1 mr-2">
+                    {item.name} <span className="text-yellow-500/70">({item.value} CR)</span>
+                  </span>
                   <button
                     onClick={() => {
                       if (state.inventory.length + state.nocturnium < state.cargoCapacity) {
