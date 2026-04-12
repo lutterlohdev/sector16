@@ -29,6 +29,7 @@ export const INITIAL_STATE: GameState = {
   map: [],
   hasMetWizard: false,
   hasCloakingSpell: false,
+  cloakCharges: 0,
   hasMinerUpgrade: false,
   jumpDriveDisabled: false,
   wizardCoords: null,

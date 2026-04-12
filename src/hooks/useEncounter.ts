@@ -12,7 +12,7 @@ export function useEncounter(
 ) {
   const [encounter, setEncounter] = useState<EncounterState | null>(null);
 
-  const totalDefense = (state?.defense || 0) + (encounter?.tempDefense || 0);
+  const totalDefense = state?.defense || 0;
 
   const triggerEncounter = (isRuin: boolean) => {
     if (state && state.defense <= 0) return;
@@ -29,29 +29,6 @@ export function useEncounter(
     }
 
     setEncounter(npc);
-  };
-
-  const useDuctTape = () => {
-    if (!state || !encounter || encounter.usedDuctTape) return;
-    const tapeIndex = state.inventory.findIndex(item => item.name === 'Duct Tape');
-    if (tapeIndex === -1) return;
-
-    const newInventory = [...state.inventory];
-    newInventory.splice(tapeIndex, 1);
-
-    setState(prev => prev ? ({
-      ...prev,
-      inventory: newInventory
-    }) : null);
-
-    setEncounter(prev => prev ? ({
-      ...prev,
-      tempDefense: (prev.tempDefense || 0) + 1,
-      usedDuctTape: true,
-      exchangeResult: "Used Duct Tape! Shields reinforced (+1 Defense for this battle)."
-    }) : null);
-
-    addLog("Used Duct Tape to patch the shields.");
   };
 
   /** Award loot and finish the encounter as a victory */
@@ -111,7 +88,7 @@ export function useEncounter(
   /** Execute a single volley and resolve the outcome */
   const executeVolley = useCallback((enc: EncounterState, currentState: GameState, isPlayerAttacking: boolean, overcharged: boolean) => {
     const playerPower = currentState.power;
-    const playerDef = currentState.defense + (enc.tempDefense || 0);
+    const playerDef = currentState.defense;
 
     let hitChance: number;
     let critChance: number;
@@ -306,11 +283,6 @@ export function useEncounter(
         addLog(msg);
 
         let realLoss = 1;
-        let newTempDef = enc.tempDefense || 0;
-        if (newTempDef > 0) {
-          newTempDef -= 1;
-          realLoss = 0;
-        }
 
         const newDefense = currentState.defense - realLoss;
         if (newDefense <= 0 && realLoss > 0) {
@@ -339,7 +311,6 @@ export function useEncounter(
             exchangeResult: msg + " They're lining up another shot!",
             playerHitChance: calcHitChance(Math.max(1, playerDef - realLoss), enc.power),
             isPlayerAttacking: false,
-            tempDefense: newTempDef,
             overcharged: false,
           } : null);
         } else {
@@ -352,7 +323,6 @@ export function useEncounter(
             exchangeResult: msg + " Opening in their formation — your turn!",
             playerHitChance: calcHitChance(playerPower, prev.npcShields),
             isPlayerAttacking: true,
-            tempDefense: newTempDef,
             overcharged: false,
           } : null);
         }
@@ -370,11 +340,12 @@ export function useEncounter(
     }
 
     if (action === 'avoid') {
-      const chance = state.hasCloakingSpell ? 1.0 : (!encounter.isAmbush ? 1.0 : (encounter.type === 'ruin' ? 0.1 : 0.8));
+      const chance = (state.hasCloakingSpell && state.cloakCharges > 0) ? 1.0 : (!encounter.isAmbush ? 1.0 : (encounter.type === 'ruin' ? 0.1 : 0.8));
       if (Math.random() < chance) {
         let avoidMsg: string;
-        if (state.hasCloakingSpell) {
-          avoidMsg = "Cloaking Spell active: Successfully avoided the encounter.";
+        if (state.hasCloakingSpell && state.cloakCharges > 0) {
+          avoidMsg = "Cloaking Spell active: Successfully avoided the encounter. (-1 Charge)";
+          setState(prev => prev ? { ...prev, cloakCharges: prev.cloakCharges - 1 } : null);
         } else if (!encounter.isAmbush) {
           avoidMsg = "No threat detected — slipped away unnoticed.";
         } else {
@@ -469,6 +440,5 @@ export function useEncounter(
     totalDefense,
     triggerEncounter,
     handleEncounterAction,
-    useDuctTape,
   };
 }

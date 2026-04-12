@@ -37,6 +37,7 @@ export interface GameState {
   map: Sector[];
   hasMetWizard: boolean;
   hasCloakingSpell: boolean;
+  cloakCharges: number;
   hasMinerUpgrade: boolean;
   jumpDriveDisabled: boolean;
   wizardCoords: { x: number; y: number } | null;
@@ -69,8 +70,6 @@ export interface EncounterState {
   status: 'waiting' | 'ambushed' | 'charging' | 'between-volleys' | 'finished';
   result?: string;
   exchangeResult?: string;
-  usedDuctTape?: boolean;
-  tempDefense?: number;
   // Volley system fields
   currentVolley: number;
   npcShields: number;

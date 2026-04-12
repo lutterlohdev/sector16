@@ -9,7 +9,6 @@ interface EncounterModalProps {
   totalPower: number;
   totalDefense: number;
   onAction: (action: 'attack' | 'defend' | 'avoid' | 'fly' | 'overcharge' | 'disengage') => void;
-  onUseDuctTape: () => void;
   onClose: () => void;
 }
 
@@ -83,7 +82,7 @@ function ChargingOverlay({ isPlayerAttacking }: { isPlayerAttacking: boolean }) 
   );
 }
 
-export default function EncounterModal({ state, encounter, totalPower, totalDefense, onAction, onUseDuctTape, onClose }: EncounterModalProps) {
+export default function EncounterModal({ state, encounter, totalPower, totalDefense, onAction, onClose }: EncounterModalProps) {
   const isActive = encounter.status !== 'finished';
   const isCharging = encounter.status === 'charging';
   const isBetweenVolleys = encounter.status === 'between-volleys';
@@ -104,10 +103,7 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
       
       if (isCharging) return; 
 
-      if (key === 'd' && (isPreBattle || isBetweenVolleys) && !encounter.usedDuctTape && state.inventory.some(i => i.name === 'Duct Tape')) {
-        onUseDuctTape();
-        return;
-      }
+
 
       if (encounter.status === 'waiting') {
         if ((key === '1' || key === 'a') && totalPower >= 1) onAction('attack');
@@ -128,7 +124,7 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isActive, isCharging, isPreBattle, isBetweenVolleys, encounter, totalPower, state.inventory, canDisengage, canOvercharge, onAction, onUseDuctTape, onClose]);
+  }, [isActive, isCharging, isPreBattle, isBetweenVolleys, encounter, totalPower, state.inventory, canDisengage, canOvercharge, onAction, onClose]);
 
   const lastOutcome = encounter.lastOutcome;
   const outcomeColor = lastOutcome === 'critical' ? 'text-cyan-400' : lastOutcome === 'hit' ? 'text-green-400' : lastOutcome === 'miss' ? 'text-red-400' : '';
@@ -175,12 +171,9 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
                     <span className="text-[10px] uppercase font-mono opacity-50">Shields</span>
                     <span className="text-lg font-mono">
                       {Math.floor(state.defense)}
-                      {encounter.tempDefense ? (
-                        <span className="text-sm opacity-50 ml-1">+{encounter.tempDefense}</span>
-                      ) : null}
                     </span>
                   </div>
-                  <ShieldPips current={state.defense + (encounter.tempDefense || 0)} max={state.defense + (encounter.tempDefense || 0)} color="border-green-500" />
+                  <ShieldPips current={state.defense} max={state.defense} color="border-green-500" />
                 </div>
               </div>
               <div className="text-right space-y-3">
@@ -224,15 +217,7 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
               </motion.div>
             )}
 
-            {/* Duct Tape — available pre-battle and between volleys */}
-            {(isPreBattle || isBetweenVolleys) && !encounter.usedDuctTape && state.inventory.some(i => i.name === 'Duct Tape') && (
-              <button
-                onClick={onUseDuctTape}
-                className="pixel-button w-full py-2 text-[10px] uppercase tracking-widest font-bold"
-              >
-                [D] Apply Duct Tape (DEFENSE +1)
-              </button>
-            )}
+
 
             {/* Action Buttons */}
             {!isCharging && (
@@ -255,7 +240,7 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
                     )}
                     <button onClick={() => onAction('avoid')} className="pixel-button flex items-center justify-center gap-2">
                       <Move size={18} />
-                      <span>[3] AVOID ({state.hasCloakingSpell ? '100%' : (!encounter.isAmbush ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%'))} CHANCE)</span>
+                      <span>[3] AVOID ({state.hasCloakingSpell && state.cloakCharges > 0 ? '100%' : (!encounter.isAmbush ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%'))} CHANCE)</span>
                     </button>
                   </>
                 )}
@@ -270,7 +255,7 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
                     </button>
                     <button onClick={() => onAction('avoid')} className="pixel-button flex items-center justify-center gap-2">
                       <Move size={18} />
-                      <span>[3] AVOID ({state.hasCloakingSpell ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%')} CHANCE)</span>
+                      <span>[3] AVOID ({state.hasCloakingSpell && state.cloakCharges > 0 ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%')} CHANCE)</span>
                     </button>
                   </>
                 )}

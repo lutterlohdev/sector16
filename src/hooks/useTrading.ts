@@ -89,29 +89,6 @@ export function useTrading(
     }
   };
 
-
-
-  const buyDuctTape = () => {
-    if (!state) return;
-    const cost = 64;
-    const currentCargo = state.nocturnium + state.inventory.length;
-    if (state.credits < cost) {
-      addLog("Insufficient credits for Duct Tape.");
-      return;
-    }
-    if (currentCargo >= state.cargoCapacity) {
-      addLog("No cargo space for Duct Tape.");
-      return;
-    }
-
-    setState(prev => prev ? ({
-      ...prev,
-      credits: prev.credits - cost,
-      inventory: [...prev.inventory, { id: Math.random().toString(36).substr(2, 9), name: 'Duct Tape', value: 16 }]
-    }) : null);
-    addLog("Purchased Duct Tape.");
-  };
-
   const repairJumpDrive = () => {
     if (!state || !state.jumpDriveDisabled) return;
     const cost = 64;
@@ -152,5 +129,5 @@ export function useTrading(
     addLog("Nocturnium Miner Upgrade installed!");
   };
 
-  return { sellAll, sellItem, sellNocturnium, buyUpgrade, repairJumpDrive, buyDuctTape, installMinerUpgrade };
+  return { sellAll, sellItem, sellNocturnium, buyUpgrade, repairJumpDrive, installMinerUpgrade };
 }

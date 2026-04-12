@@ -26,7 +26,6 @@ interface SectorPanelProps {
 
   repairJumpDrive: () => void;
   installMinerUpgrade: () => void;
-  buyDuctTape: () => void;
 }
 
 export default function SectorPanel({
@@ -41,7 +40,6 @@ export default function SectorPanel({
   buyUpgrade,
   repairJumpDrive,
   installMinerUpgrade,
-  buyDuctTape,
 }: SectorPanelProps) {
   const isDocked = state.globalCoords.x % 16 === 8 && state.globalCoords.y % 16 === 8;
 
@@ -161,7 +159,6 @@ export default function SectorPanel({
                   sellNocturnium={sellNocturnium}
                   sellItem={sellItem}
                   sellAll={sellAll}
-                  buyDuctTape={buyDuctTape}
                 />
               ) : (
                 <div className="p-6 border border-emerald-500/20 bg-emerald-500/5 flex flex-col items-center gap-4 text-center">

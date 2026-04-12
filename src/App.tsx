@@ -42,7 +42,7 @@ export default function App() {
   // Encounter hook
   const {
     encounter, setEncounter, totalDefense,
-    triggerEncounter, handleEncounterAction, useDuctTape
+    triggerEncounter, handleEncounterAction
   } = useEncounter(state, setState, addLog);
 
   // Movement hook
@@ -58,7 +58,7 @@ export default function App() {
   // Trading hook
   const {
     sellAll, sellItem, sellNocturnium,
-    buyUpgrade, repairJumpDrive, buyDuctTape, installMinerUpgrade
+    buyUpgrade, repairJumpDrive, installMinerUpgrade
   } = useTrading(state, setState, addLog);
 
   // Global keyboard listeners
@@ -166,7 +166,6 @@ export default function App() {
               buyUpgrade={buyUpgrade}
               repairJumpDrive={repairJumpDrive}
               installMinerUpgrade={installMinerUpgrade}
-              buyDuctTape={buyDuctTape}
             />
           )}
 
@@ -178,6 +177,7 @@ export default function App() {
         totalPower={totalPower}
         totalDefense={totalDefense}
         hasCloakingSpell={state.hasCloakingSpell}
+        cloakCharges={state.cloakCharges}
         onCargoClick={() => setShowInventory(true)}
         encounterActive={!!encounter}
       />
@@ -227,7 +227,6 @@ export default function App() {
             totalPower={totalPower}
             totalDefense={totalDefense}
             onAction={handleEncounterAction}
-            onUseDuctTape={useDuctTape}
             onClose={() => setEncounter(null)}
           />
         )}

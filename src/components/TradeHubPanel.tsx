@@ -8,7 +8,6 @@ interface TradeHubPanelProps {
   sellNocturnium: (amount: number) => void;
   sellItem: (index: number) => void;
   sellAll: () => void;
-  buyDuctTape: () => void;
 }
 
 export default function TradeHubPanel({
@@ -17,7 +16,6 @@ export default function TradeHubPanel({
   sellNocturnium,
   sellItem,
   sellAll,
-  buyDuctTape,
 }: TradeHubPanelProps) {
   // Warning banner logic
   const isWeaponsOffline = state.power <= 0;
@@ -39,14 +37,11 @@ export default function TradeHubPanel({
         case '3':
           if (state.nocturnium > 0 || state.inventory.length > 0) sellAll();
           break;
-        case '4':
-          if (state.credits >= 64) buyDuctTape();
-          break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state, sellNocturnium, sellAll, buyDuctTape]);
+  }, [state, sellNocturnium, sellAll]);
 
   return (
     <div className="space-y-4">
@@ -128,22 +123,7 @@ export default function TradeHubPanel({
         </button>
       </div>
 
-      {/* Supplies */}
-      <div className="grid grid-cols-1 gap-2 mt-4">
-        <p className="text-xs border-b border-white pb-1">SUPPLIES</p>
-        <div className="p-2 border border-white/30 flex justify-between items-center">
-          <div className="flex flex-col">
-            <span className="text-sm">Duct Tape</span>
-            <span className="text-[10px] opacity-50 italic">Emergency Shield Patch (+1 Def)</span>
-          </div>
-          <button
-            onClick={buyDuctTape}
-            className="pixel-button text-xs py-1 px-4"
-          >
-            [4] BUY (64 CR)
-          </button>
-        </div>
-      </div>
+
 
     </div>
   );

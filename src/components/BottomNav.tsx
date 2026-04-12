@@ -4,11 +4,12 @@ interface BottomNavProps {
   totalPower: number;
   totalDefense: number;
   hasCloakingSpell: boolean;
+  cloakCharges: number;
   onCargoClick: () => void;
   encounterActive: boolean;
 }
 
-export default function BottomNav({ totalPower, totalDefense, hasCloakingSpell, onCargoClick, encounterActive }: BottomNavProps) {
+export default function BottomNav({ totalPower, totalDefense, hasCloakingSpell, cloakCharges, onCargoClick, encounterActive }: BottomNavProps) {
   return (
     <div className="flex border-t-2 border-white bg-black">
       <button
@@ -37,11 +38,11 @@ export default function BottomNav({ totalPower, totalDefense, hasCloakingSpell, 
           </div>
           {hasCloakingSpell && (
             <div className="flex flex-col items-center">
-              <div className="flex items-center gap-1 text-red-500 animate-pulse">
+              <div className={`flex items-center gap-1 ${cloakCharges > 0 ? 'text-red-500 animate-pulse' : 'text-red-900 opacity-50'}`}>
                 <Zap size={12} fill="currentColor" />
-                <span className="text-sm font-bold">READY</span>
+                <span className="text-sm font-bold">{cloakCharges > 0 ? cloakCharges : '0'}</span>
               </div>
-              <span className="text-[8px] text-red-500 uppercase font-bold">Cloak</span>
+              <span className={`text-[8px] uppercase font-bold ${cloakCharges > 0 ? 'text-red-500' : 'text-red-900 opacity-50'}`}>Cloak</span>
             </div>
           )}
         </div>

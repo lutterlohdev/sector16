@@ -50,6 +50,59 @@ export default function WizardModal({ state, setState, addLog, onClose }: Wizard
               "I WILL FIND IT."
             </button>
           </>
+        ) : state.hasCloakingSpell ? (
+          <>
+            <p className="text-sm leading-relaxed italic opacity-80">
+              "Ah, the spell's energy has faded. To restore its power, I require an artifact of great value.
+              Bring me any item worth at least <span className="text-emerald-400 font-bold">128 Credits</span>."
+            </p>
+
+            {state.inventory.some(i => i.value >= 128) ? (() => {
+              const itemToTrade = state.inventory.find(i => i.value >= 128)!;
+              return (
+                <div className="space-y-4">
+                  <div className="p-3 border border-emerald-500/30 bg-emerald-500/5">
+                    <p className="text-[10px] text-emerald-400 uppercase font-bold">Item Detected: {itemToTrade.name} ({itemToTrade.value} CR)</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setState(prev => {
+                        if (!prev) return prev;
+                        const itemIdx = prev.inventory.findIndex(i => i.id === itemToTrade.id);
+                        const nextInv = [...prev.inventory];
+                        nextInv.splice(itemIdx, 1);
+                        return {
+                          ...prev,
+                          inventory: nextInv,
+                          cloakCharges: 5,
+                          wizardCoords: null
+                        };
+                      });
+                      onClose();
+                      addLog(`Exchanged ${itemToTrade.name} to recharge the Cloaking Spell!`);
+                    }}
+                    className="pixel-button w-full py-2 bg-purple-500/20 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white"
+                  >
+                    EXCHANGE ITEM FOR RECHARGE
+                  </button>
+                </div>
+              );
+            })() : (
+              <>
+                <p className="text-xs text-red-400">You do not have any items of sufficient value.</p>
+                <p className="text-[10px] opacity-50 italic">
+                  "Only the finest artifacts will do... return when your cargo holds such treasures."
+                </p>
+                <button
+                  autoFocus
+                  onClick={onClose}
+                  className="pixel-button w-full py-2 opacity-50"
+                >
+                  CONTINUE SEARCH
+                </button>
+              </>
+            )}
+          </>
         ) : (
           <>
             <p className="text-sm leading-relaxed italic opacity-80">
@@ -72,6 +125,7 @@ export default function WizardModal({ state, setState, addLog, onClose }: Wizard
                         ...prev,
                         inventory: nextInv,
                         hasCloakingSpell: true,
+                        cloakCharges: 5,
                         wizardCoords: null
                       };
                     });

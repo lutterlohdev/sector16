@@ -61,7 +61,7 @@ export function useMovement(
         let wizardFound = false;
         if (!prev.hasMetWizard && prev.wizardCoords && newX === prev.wizardCoords.x && newY === prev.wizardCoords.y) {
           wizardFound = true;
-        } else if (prev.hasMetWizard && !prev.hasCloakingSpell && Math.random() < 1/16) {
+        } else if (prev.hasMetWizard && (!prev.hasCloakingSpell || prev.cloakCharges === 0) && Math.random() < 1/16) {
           wizardFound = true;
         }
 
