@@ -32,7 +32,7 @@ export default function WizardModal({ state, setState, addLog, onClose }: Wizard
             <p className="text-sm leading-relaxed italic opacity-80">
               "Ah, a traveler in the mist. I seek a specific artifact to power my experiments...
               Bring me a <span className="text-emerald-400 font-bold">Hydroponics Grow Light</span>,
-              and I shall grant you a spell of absolute invisibility."
+              and I shall grant you a Cloaking Spell. It possesses enough energy to guarantee safe passage from 5 encounters before fading."
             </p>
             <p className="text-[10px] opacity-50">
               "I must vanish now. The nebulas are my home, but I am never in one place for long.
@@ -53,7 +53,7 @@ export default function WizardModal({ state, setState, addLog, onClose }: Wizard
         ) : state.hasCloakingSpell ? (
           <>
             <p className="text-sm leading-relaxed italic opacity-80">
-              "Ah, the spell's energy has faded. To restore its power, I require an artifact of great value.
+              "Ah, the spell's energy has faded. To restore its power for another 5 uses, I require an artifact of great value.
               Bring me any item worth at least <span className="text-emerald-400 font-bold">128 Credits</span>."
             </p>
 

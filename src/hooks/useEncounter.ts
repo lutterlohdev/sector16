@@ -330,8 +330,16 @@ export function useEncounter(
     }
   }, [addLog, setState, awardVictory, handlePlayerDeath]);
 
-  const handleEncounterAction = (action: 'attack' | 'defend' | 'avoid' | 'fly' | 'overcharge' | 'disengage') => {
+  const handleEncounterAction = (action: 'attack' | 'defend' | 'avoid' | 'cloak' | 'fly' | 'overcharge' | 'disengage') => {
     if (!state || !encounter) return;
+
+    if (action === 'cloak') {
+      if (!state.hasCloakingSpell || state.cloakCharges <= 0) return;
+      setState(prev => prev ? { ...prev, cloakCharges: prev.cloakCharges - 1 } : null);
+      addLog("Cloaking Spell active: Successfully avoided the encounter. (-1 Charge)");
+      setEncounter(null);
+      return;
+    }
 
     if (action === 'fly') {
       addLog("You successfully flew away.");
@@ -340,13 +348,10 @@ export function useEncounter(
     }
 
     if (action === 'avoid') {
-      const chance = (state.hasCloakingSpell && state.cloakCharges > 0) ? 1.0 : (!encounter.isAmbush ? 1.0 : (encounter.type === 'ruin' ? 0.1 : 0.8));
+      const chance = !encounter.isAmbush ? 1.0 : (encounter.type === 'ruin' ? 0.1 : 0.8);
       if (Math.random() < chance) {
         let avoidMsg: string;
-        if (state.hasCloakingSpell && state.cloakCharges > 0) {
-          avoidMsg = "Cloaking Spell active: Successfully avoided the encounter. (-1 Charge)";
-          setState(prev => prev ? { ...prev, cloakCharges: prev.cloakCharges - 1 } : null);
-        } else if (!encounter.isAmbush) {
+        if (!encounter.isAmbush) {
           avoidMsg = "No threat detected — slipped away unnoticed.";
         } else {
           const pct = Math.round(chance * 100);

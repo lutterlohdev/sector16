@@ -8,7 +8,7 @@ interface EncounterModalProps {
   encounter: EncounterState;
   totalPower: number;
   totalDefense: number;
-  onAction: (action: 'attack' | 'defend' | 'avoid' | 'fly' | 'overcharge' | 'disengage') => void;
+  onAction: (action: 'attack' | 'defend' | 'avoid' | 'fly' | 'overcharge' | 'disengage' | 'cloak') => void;
   onClose: () => void;
 }
 
@@ -108,9 +108,11 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
       if (encounter.status === 'waiting') {
         if ((key === '1' || key === 'a') && totalPower >= 1) onAction('attack');
         if (key === '3' || key === 'v') onAction('avoid');
+        if (key === 'c' && state.hasCloakingSpell && state.cloakCharges > 0) onAction('cloak');
       } else if (encounter.status === 'ambushed') {
         if (key === '2' || key === 'b') onAction('defend');
         if (key === '3' || key === 'v') onAction('avoid');
+        if (key === 'c' && state.hasCloakingSpell && state.cloakCharges > 0) onAction('cloak');
       } else if (isBetweenVolleys) {
         if (encounter.isPlayerAttacking) {
           if ((key === '1' || key === 'a') && totalPower >= 1) onAction('attack');
@@ -240,8 +242,14 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
                     )}
                     <button onClick={() => onAction('avoid')} className="pixel-button flex items-center justify-center gap-2">
                       <Move size={18} />
-                      <span>[3] AVOID ({state.hasCloakingSpell && state.cloakCharges > 0 ? '100%' : (!encounter.isAmbush ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%'))} CHANCE)</span>
+                      <span>[3] AVOID ({!encounter.isAmbush ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%')} CHANCE)</span>
                     </button>
+                    {state.hasCloakingSpell && state.cloakCharges > 0 && (
+                      <button onClick={() => onAction('cloak')} className="pixel-button flex items-center justify-center gap-2 text-red-500 border-red-500/50">
+                        <Zap size={18} />
+                        <span>[C] USE CLOAK (100% CHANCE, -1 CHARGE)</span>
+                      </button>
+                    )}
                   </>
                 )}
 
@@ -255,8 +263,14 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
                     </button>
                     <button onClick={() => onAction('avoid')} className="pixel-button flex items-center justify-center gap-2">
                       <Move size={18} />
-                      <span>[3] AVOID ({state.hasCloakingSpell && state.cloakCharges > 0 ? '100%' : (encounter.type === 'ruin' ? '10%' : '80%')} CHANCE)</span>
+                      <span>[3] AVOID ({encounter.type === 'ruin' ? '10%' : '80%'} CHANCE)</span>
                     </button>
+                    {state.hasCloakingSpell && state.cloakCharges > 0 && (
+                      <button onClick={() => onAction('cloak')} className="pixel-button flex items-center justify-center gap-2 text-red-500 border-red-500/50">
+                        <Zap size={18} />
+                        <span>[C] USE CLOAK (100% CHANCE, -1 CHARGE)</span>
+                      </button>
+                    )}
                   </>
                 )}
 
