@@ -3,8 +3,8 @@
 This document tracks the progress and exact method used to generate the 64 unique loot icons for Sector 16.
 
 ## Overall Progress
-- **Completed:** 7 / 64
-- **Remaining:** 57 / 64
+- **Completed:** 8 / 64
+- **Remaining:** 56 / 64
 
 ### Completed Items
 1. Frayed Power Cable (`frayed_power_cable.png`)
@@ -14,9 +14,9 @@ This document tracks the progress and exact method used to generate the 64 uniqu
 5. Corroded Battery Pack (`corroded_battery_pack.png`)
 6. Stripped Copper Wire (`stripped_copper_wire.png`)
 7. Shattered Viewport Glass (`shattered_viewport_glass.png`)
+8. Dull Carbon Plating (`dull_carbon_plating.png`)
 
 ### Remaining Items to Generate
-- Dull Carbon Plating
 - Spent Thruster Shell
 - Smashed Keypad
 - Blown Fuse Box
