@@ -3,8 +3,8 @@
 This document tracks the progress and exact method used to generate the 64 unique loot icons for Sector 16.
 
 ## Overall Progress
-- **Completed:** 8 / 64
-- **Remaining:** 56 / 64
+- **Completed:** 25 / 64
+- **Remaining:** 39 / 64
 
 ### Completed Items
 1. Frayed Power Cable (`frayed_power_cable.png`)
@@ -15,25 +15,25 @@ This document tracks the progress and exact method used to generate the 64 uniqu
 6. Stripped Copper Wire (`stripped_copper_wire.png`)
 7. Shattered Viewport Glass (`shattered_viewport_glass.png`)
 8. Dull Carbon Plating (`dull_carbon_plating.png`)
+9. Spent Thruster Shell (`spent_thruster_shell.png`)
+10. Smashed Keypad (`smashed_keypad.png`)
+11. Blown Fuse Box (`blown_fuse_box.png`)
+12. Empty Coolant Tube (`empty_coolant_tube.png`)
+13. Dusty Cathode Tube (`dusty_cathode_tube.png`)
+14. Depleted Oxygen Tank (`depleted_oxygen_tank.png`)
+15. Warped Heat Sink (`warped_heat_sink.png`)
+16. Cracked Data Pad (`cracked_data_pad.png`)
+17. Functioning Relay (`functioning_relay.png`)
+18. Spare Spark Plug (`spare_spark_plug.png`)
+19. Reclaimed Titanium Scrap (`reclaimed_titanium_scrap.png`)
+20. Intact Magnetic Seal (`intact_magnetic_seal.png`)
+21. Hydraulic Fluid Canister (`hydraulic_fluid_canister.png`)
+22. Clean Engine Filter (`clean_engine_filter.png`)
+23. Heavy Duty Cables (`heavy_duty_cables.png`)
+24. Backup Bios Chip (`backup_bios_chip.png`)
+25. Portable Med-Kit (`portable_med_kit.png`)
 
 ### Remaining Items to Generate
-- Spent Thruster Shell
-- Smashed Keypad
-- Blown Fuse Box
-- Empty Coolant Tube
-- Dusty Cathode Tube
-- Depleted Oxygen Tank
-- Warped Heat Sink
-- Cracked Data Pad
-- Functioning Relay
-- Spare Spark Plug
-- Reclaimed Titanium Scrap
-- Intact Magnetic Seal
-- Hydraulic Fluid Canister
-- Clean Engine Filter
-- Heavy Duty Cables
-- Backup Bios Chip
-- Portable Med-Kit
 - Micro-welder
 - Standard Issue Rations
 - Plasma Torch
