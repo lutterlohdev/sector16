@@ -1,6 +1,7 @@
 import { Dispatch, SetStateAction } from 'react';
 import { motion } from 'motion/react';
 import { GameState, DiscoveryState } from '../../types';
+import ItemIcon from '../ItemIcon';
 
 interface DiscoveryModalProps {
   state: GameState;
@@ -28,6 +29,7 @@ export default function DiscoveryModal({ state, setState, discovery, addLog, onC
 
         {discovery.item && (
           <div className="p-4 border border-white/20 bg-white/5 flex flex-col items-center gap-2">
+            <ItemIcon name={discovery.item.name} className="w-16 h-16 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
             <span className="text-lg font-bold">{discovery.item.name}</span>
             <span className="text-[10px] opacity-50">VALUE: {discovery.item.value} CR</span>
           </div>

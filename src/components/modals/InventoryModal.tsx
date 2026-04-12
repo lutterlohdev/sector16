@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Trash2 } from 'lucide-react';
 import { GameState } from '../../types';
 import { getRarityColor, getRarityName } from '../../utils/items';
+import ItemIcon from '../ItemIcon';
 
 interface InventoryModalProps {
   state: GameState;
@@ -57,6 +58,7 @@ export default function InventoryModal({ state, setState, onClose }: InventoryMo
               <div key={i} className="flex justify-between items-center p-2 border border-white/20">
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
+                    <ItemIcon name={item.name} className="w-6 h-6" />
                     <span>{item.name}</span>
                     <span className={`text-[8px] font-bold ${getRarityColor(item.value)}`}>
                       [{getRarityName(item.value)}]

@@ -1,6 +1,7 @@
 import { useState, Dispatch, SetStateAction } from 'react';
 import { motion } from 'motion/react';
 import { GameState } from '../../types';
+import ItemIcon from '../ItemIcon';
 
 interface StorageModalProps {
   state: GameState;
@@ -51,6 +52,7 @@ export default function StorageModal({ state, setState, onClose }: StorageModalP
             <div className="flex-1 overflow-y-auto space-y-2 pr-2">
               {sortedInventory.map(({ item, index }) => (
                 <div key={index} className="flex justify-between items-center p-2 border border-white/10 text-[10px]">
+                  <ItemIcon name={item.name} className="w-5 h-5 mr-2" />
                   <span className="truncate flex-1 mr-2">
                     {item.name} <span className="text-yellow-500/70">({item.value} CR)</span>
                   </span>
@@ -82,6 +84,7 @@ export default function StorageModal({ state, setState, onClose }: StorageModalP
             <div className="flex-1 overflow-y-auto space-y-2 pr-2">
               {sortedStorage.map(({ item, index }) => (
                 <div key={index} className="flex justify-between items-center p-2 border border-blue-500/20 text-[10px]">
+                  <ItemIcon name={item.name} className="w-5 h-5 mr-2" />
                   <span className="truncate flex-1 mr-2">
                     {item.name} <span className="text-yellow-500/70">({item.value} CR)</span>
                   </span>
