@@ -3,8 +3,8 @@
 This document tracks the progress and exact method used to generate the 64 unique loot icons for Sector 16.
 
 ## Overall Progress
-- **Completed:** 25 / 64
-- **Remaining:** 39 / 64
+- **Completed:** 43 / 64
+- **Remaining:** 21 / 64
 
 ### Completed Items
 1. Frayed Power Cable (`frayed_power_cable.png`)
@@ -32,26 +32,26 @@ This document tracks the progress and exact method used to generate the 64 uniqu
 23. Heavy Duty Cables (`heavy_duty_cables.png`)
 24. Backup Bios Chip (`backup_bios_chip.png`)
 25. Portable Med-Kit (`portable_med_kit.png`)
+26. Micro-welder (`micro_welder.png`)
+27. Standard Issue Rations (`standard_issue_rations.png`)
+28. Plasma Torch (`plasma_torch.png`)
+29. Hand-crank Generator (`hand_crank_generator.png`)
+30. Loose Ball Bearings (`loose_ball_bearings.png`)
+31. Stabilizer Fin (`stabilizer_fin.png`)
+32. Signal Amplifier (`signal_amplifier.png`)
+33. Navigation Plotter (`navigation_plotter.png`)
+34. Atmospheric Scrubber (`atmospheric_scrubber.png`)
+35. Solid-state Hard Drive (`solid_state_hard_drive.png`)
+36. High-Capacity Battery (`high_capacity_battery.png`)
+37. Communications Array (`communications_array.png`)
+38. Scrap Torpedo Casing (`scrap_torpedo_casing.png`)
+39. Hydroponics Grow Light (`hydroponics_grow_light.png`)
+40. Reinforced Hull Plate (`reinforced_hull_plate.png`)
+41. Subspace Antenna (`subspace_antenna.png`)
+42. AI Logic Chip (`ai_logic_chip.png`)
+43. Quantum Capacitor (`quantum_capacitor.png`)
 
 ### Remaining Items to Generate
-- Micro-welder
-- Standard Issue Rations
-- Plasma Torch
-- Hand-crank Generator
-- Loose Ball Bearings
-- Stabilizer Fin
-- Signal Amplifier
-- Navigation Plotter
-- Atmospheric Scrubber
-- Solid-state Hard Drive
-- High-Capacity Battery
-- Communications Array
-- Scrap Torpedo Casing
-- Hydroponics Grow Light
-- Reinforced Hull Plate
-- Subspace Antenna
-- AI Logic Chip
-- Quantum Capacitor
 - Shield Emitter Coil
 - Medical Auto-Doc
 - Advanced Targeting Lens
