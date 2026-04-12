@@ -2,6 +2,10 @@
 
 This is the canonical game guide for Sector 16. It combines gameplay notes and implementation details and reflects the current code behavior.
 
+> [!IMPORTANT]
+> **For AI Assistants (Gemini, GitHub Copilot, etc.):**
+> ALWAYS update this `game_guide.md` file whenever making gameplay, logic, or mechanic changes to ensure it reflects the current state of the codebase.
+
 ## Core Loop
 
 - Navigate a 64x64 grid (4x4 sectors, each 16x16).
@@ -47,6 +51,9 @@ Sector index mapping:
 ## Movement & Jumping
 
 - Arrow keys move 1 tile, clamped to `0..63`.
+- `I` or `C` toggles Inventory.
+- `O` opens Storage Locker (if standing on correct tile).
+- `Escape` closes modals.
 - Jump drive duration: `min(ManhattanDistance * 2000ms, 8000ms)`.
 - Jump destination is sector center `(col * 16 + 8, row * 16 + 8)`.
 
@@ -70,12 +77,12 @@ Sector index mapping:
 
 ### Combat Notes
 
-- Attack dice: `min(floor(power), 3)`.
-- Defense dice are capped at 2.
-- Ties go to defender.
-- If player attack wins: enemy defense decreases.
-- If player attack loses exchanges: player power can drop.
-- Enemy may warp out after player has attacked (10% chance each subsequent attack).
+- Combat runs in volleys (Defend/Attack).
+- Dice rolling is replaced by base Hit Chance: `min(0.95, max(0.15, attack / (attack + defense)))`.
+- Critical hits occur, scaling with stat advantage: `3% + (advantage * 2%)`, max 20%.
+- Overcharge diverts 1 Shield to Weapons for +15% Hit chance.
+- NPCs may spawn as archetypes (Glass Cannon, Tank, Standard).
+- Enemy may warp out after early volleys.
 
 On victory:
 
@@ -112,17 +119,12 @@ Damaged systems can be repaired at Trade Hubs.
 - If Miner upgrade installed: `+2` yield.
 - Sell value: `3` credits per unit.
 
-### Rotational Scavenging
+### Tiered Sector Loot
 
-- Candidate item is selected by move index:
-  - `SPACE_JUNK[moveCount % SPACE_JUNK.length]`
-- Discovery formula:
-  - `baseOdds = item.value / 2`
-  - sector multipliers:
-    - Ship Graveyard: 4
-    - Ruin Sector: 2
-    - Trade Hub / Asteroid Belt: 0
-    - Others: 1
+- Rotational scavenging has been replaced by layered loot tables per sector.
+- Drop chances vary. Asteroid Belt: 0% by move. Ship Graveyard: 2%. The Void/Nebula/Ruin: 1%.
+- Each discovery draws from 3 rarity tiers (Common, Mid, Legendary). Weightings vary by sector type.
+- Unique Legendary Items (IDs 61-64), including the Neon Medusa Core, can only be obtained once. If re-rolled while already owned, the drop downgrades to the mid tier.
 
 ### Trade Hub Upgrade Costs
 
@@ -163,8 +165,9 @@ Nocturnium Miner upgrade requires these components:
 - First meeting gives quest for item ID 39 (Hydroponics Grow Light).
 - After first meeting, future sightings in Nebula are random.
 - Turning in item grants Cloaking Spell:
-  - Avoid action becomes guaranteed success.
-  - Nebula movement radiation no longer applies.
+  - Avoid action becomes guaranteed success and Nebula movement radiation no longer applies.
+  - Grants 5 limited charges. Using the cloak consumes 1 charge.
+  - When depleted, it can be recharged back to 5 charges by giving the Wizard any item worth at least 128 Credits.
 
 ## Notes
 
