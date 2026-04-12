@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction } from 'react';
+import { useState, Dispatch, SetStateAction } from 'react';
 import { motion } from 'motion/react';
 import { GameState } from '../../types';
 
@@ -9,6 +9,16 @@ interface StorageModalProps {
 }
 
 export default function StorageModal({ state, setState, onClose }: StorageModalProps) {
+  const [sortBy, setSortBy] = useState<'name' | 'value'>('name');
+
+  const sortedInventory = state.inventory
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => sortBy === 'name' ? a.item.name.localeCompare(b.item.name) : b.item.value - a.item.value);
+
+  const sortedStorage = state.storageLocker
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => sortBy === 'name' ? a.item.name.localeCompare(b.item.name) : b.item.value - a.item.value);
+
   return (
     <motion.div
       key="storage-modal"
@@ -23,7 +33,15 @@ export default function StorageModal({ state, setState, onClose }: StorageModalP
             <h3 className="text-xl font-bold tracking-widest uppercase">Storage Locker</h3>
             <span className="text-[10px] opacity-50">SECURE FACILITY - {state.storageLocker.length} / {state.storageCapacity} SLOTS</span>
           </div>
-          <button autoFocus onClick={onClose} className="pixel-button py-1 px-3">CLOSE</button>
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setSortBy(prev => prev === 'name' ? 'value' : 'name')} 
+              className="pixel-button py-1 px-3 bg-blue-900/40 border-blue-500/50 text-[10px]"
+            >
+              SORT: {sortBy.toUpperCase()}
+            </button>
+            <button autoFocus onClick={onClose} className="pixel-button py-1 px-3">CLOSE</button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-6 flex-1 overflow-hidden">
@@ -31,8 +49,8 @@ export default function StorageModal({ state, setState, onClose }: StorageModalP
           <div className="flex flex-col overflow-hidden">
             <p className="text-[10px] opacity-50 uppercase mb-2">Ship Cargo ({state.inventory.length} / {state.cargoCapacity})</p>
             <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-              {state.inventory.map((item, i) => (
-                <div key={i} className="flex justify-between items-center p-2 border border-white/10 text-[10px]">
+              {sortedInventory.map(({ item, index }) => (
+                <div key={index} className="flex justify-between items-center p-2 border border-white/10 text-[10px]">
                   <span className="truncate flex-1 mr-2">
                     {item.name} <span className="text-yellow-500/70">({item.value} CR)</span>
                   </span>
@@ -41,7 +59,7 @@ export default function StorageModal({ state, setState, onClose }: StorageModalP
                       if (state.storageLocker.length < state.storageCapacity) {
                         setState(prev => {
                           if (!prev) return prev;
-                          const nextInventory = prev.inventory.filter((_, idx) => idx !== i);
+                          const nextInventory = prev.inventory.filter((_, idx) => idx !== index);
                           const nextStorage = [...prev.storageLocker, item];
                           return { ...prev, inventory: nextInventory, storageLocker: nextStorage };
                         });
@@ -62,8 +80,8 @@ export default function StorageModal({ state, setState, onClose }: StorageModalP
           <div className="flex flex-col overflow-hidden">
             <p className="text-[10px] opacity-50 uppercase mb-2">Locker Contents ({state.storageLocker.length} / {state.storageCapacity})</p>
             <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-              {state.storageLocker.map((item, i) => (
-                <div key={i} className="flex justify-between items-center p-2 border border-blue-500/20 text-[10px]">
+              {sortedStorage.map(({ item, index }) => (
+                <div key={index} className="flex justify-between items-center p-2 border border-blue-500/20 text-[10px]">
                   <span className="truncate flex-1 mr-2">
                     {item.name} <span className="text-yellow-500/70">({item.value} CR)</span>
                   </span>
@@ -72,7 +90,7 @@ export default function StorageModal({ state, setState, onClose }: StorageModalP
                       if (state.inventory.length + state.nocturnium < state.cargoCapacity) {
                         setState(prev => {
                           if (!prev) return prev;
-                          const nextStorage = prev.storageLocker.filter((_, idx) => idx !== i);
+                          const nextStorage = prev.storageLocker.filter((_, idx) => idx !== index);
                           const nextInventory = [...prev.inventory, item];
                           return { ...prev, inventory: nextInventory, storageLocker: nextStorage };
                         });
