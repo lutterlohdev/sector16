@@ -41,7 +41,9 @@ export function pickLootItem(
 
   // --- Unique legendary protection (ids 61–64) ---
   if (UNIQUE_ITEM_IDS.includes(itemId)) {
-    const alreadyOwned = gameState.inventory.some(i => i.id === itemId);
+    const alreadyOwned = 
+      gameState.inventory.some(i => i.id === itemId) || 
+      gameState.storageLocker.some(i => i.id === itemId);
     if (alreadyOwned) {
       // Re-roll once from the mid tier (index 1)
       const midTier = tiers[1];

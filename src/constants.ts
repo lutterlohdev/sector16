@@ -101,10 +101,10 @@ export const NPC_NAMES_SUFFIX = [
 
 /** Base drop chance per move for each discoverable sector */
 export const SECTOR_DROP_CHANCE: Partial<Record<SectorType, number>> = {
-  'Ship Graveyard': 0.06,
-  'The Void': 0.04,
-  'Nebula': 0.03,
-  'Ruin Sector': 0.04,
+  'Ship Graveyard': 0.02,
+  'The Void': 0.01,
+  'Nebula': 0.01,
+  'Ruin Sector': 0.01,
 };
 
 /** Unique legendary item ids (61–64). Only one of each can exist in cargo at a time. */
