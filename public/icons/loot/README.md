@@ -3,8 +3,8 @@
 This document tracks the progress and exact method used to generate the 64 unique loot icons for Sector 16.
 
 ## Overall Progress
-- **Completed:** 43 / 64
-- **Remaining:** 21 / 64
+- **Completed:** 60 / 64
+- **Remaining:** 4 / 64
 
 ### Completed Items
 1. Frayed Power Cable (`frayed_power_cable.png`)
@@ -50,25 +50,25 @@ This document tracks the progress and exact method used to generate the 64 uniqu
 41. Subspace Antenna (`subspace_antenna.png`)
 42. AI Logic Chip (`ai_logic_chip.png`)
 43. Quantum Capacitor (`quantum_capacitor.png`)
+44. Shield Emitter Coil (`shield_emitter_coil.png`)
+45. Medical Auto-Doc (`medical_auto_doc.png`)
+46. Advanced Targeting Lens (`advanced_targeting_lens.png`)
+47. Sublight Engine Thruster (`sublight_engine_thruster.png`)
+48. Black Market Hyper-fuel (`black_market_hyper_fuel.png`)
+49. Military-Grade CPU (`military_grade_cpu.png`)
+50. Prototype Laser Diode (`prototype_laser_diode.png`)
+51. Intact Surveyor Satellite (`intact_surveyor_satellite.png`)
+52. Rare Earth Magnet Cluster (`rare_earth_magnet_cluster.png`)
+53. Unmarked Data Drive (`unmarked_data_drive.png`)
+54. Emergency Warp Core (`emergency_warp_core.png`)
+55. First-Gen Plasma Rifle (`first_gen_plasma_rifle.png`)
+56. Pre-War Cybernetics (`pre_war_cybernetics.png`)
+57. Intact Mining Drone (`intact_mining_drone.png`)
+58. Encrypted Smuggler Deck (`encrypted_smuggler_deck.png`)
+59. Anti-Matter Fragment (`anti_matter_fragment.png`)
+60. Experimental Warp Drive (`experimental_warp_drive.png`)
 
 ### Remaining Items to Generate
-- Shield Emitter Coil
-- Medical Auto-Doc
-- Advanced Targeting Lens
-- Sublight Engine Thruster
-- Black Market Hyper-fuel
-- Military-Grade CPU
-- Prototype Laser Diode
-- Intact Surveyor Satellite
-- Rare Earth Magnet Cluster
-- Unmarked Data Drive
-- Emergency Warp Core
-- First-Gen Plasma Rifle
-- Pre-War Cybernetics
-- Intact Mining Drone
-- Encrypted Smuggler Deck
-- Anti-Matter Fragment
-- Experimental Warp Drive
 - Crystalline Neural Matrix
 - Sovereign Admiral's Log
 - Neon Medusa Core
