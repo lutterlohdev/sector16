@@ -3,8 +3,8 @@
 This document tracks the progress and exact method used to generate the 64 unique loot icons for Sector 16.
 
 ## Overall Progress
-- **Completed:** 60 / 64
-- **Remaining:** 4 / 64
+- **Completed:** 64 / 64
+- **Remaining:** 0 / 64
 
 ### Completed Items
 1. Frayed Power Cable (`frayed_power_cable.png`)
@@ -67,12 +67,10 @@ This document tracks the progress and exact method used to generate the 64 uniqu
 58. Encrypted Smuggler Deck (`encrypted_smuggler_deck.png`)
 59. Anti-Matter Fragment (`anti_matter_fragment.png`)
 60. Experimental Warp Drive (`experimental_warp_drive.png`)
-
-### Remaining Items to Generate
-- Crystalline Neural Matrix
-- Sovereign Admiral's Log
-- Neon Medusa Core
-- The Genesis Orb
+61. Crystalline Neural Matrix (`crystalline_neural_matrix.png`)
+62. Sovereign Admiral's Log (`sovereign_admirals_log.png`)
+63. Neon Medusa Core (`neon_medusa_core.png`)
+64. The Genesis Orb (`the_genesis_orb.png`)
 
 ## Generation Process
 
