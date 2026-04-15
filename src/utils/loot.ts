@@ -58,10 +58,10 @@ export function pickLootItem(
 /**
  * Get the path to the item's custom icon based on its name.
  * e.g., "AI Logic Chip" -> "ai_logic_chip.png"
- * "Sovereign Admiral's Log" -> "sovereign_admiral_s_log.png"
+ * "Sovereign Admiral's Log" -> "sovereign_admirals_log.png"
  */
 export function getItemIconPath(itemName: string): string {
   // Convert to lower case, replace non-alphanumeric chars with underscore, and trim trailing underscores
-  const formatted = itemName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+$/, '');
+  const formatted = itemName.toLowerCase().replace(/'/g, '').replace(/[^a-z0-9]+/g, '_').replace(/_+$/, '');
   return `/icons/loot/${formatted}.png`;
 }
