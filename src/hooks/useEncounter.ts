@@ -381,7 +381,7 @@ export function useEncounter(
     }
 
     if (action === 'disengage') {
-      if (encounter.currentVolley < 1) return;
+      if (encounter.currentVolley < 1 || !encounter.isPlayerAttacking) return;
       addLog("You disengaged from the battle.");
       setEncounter(prev => prev ? {
         ...prev,

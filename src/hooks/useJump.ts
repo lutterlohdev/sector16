@@ -39,6 +39,10 @@ export function useJump(
 
   const jumpTo = (index: number) => {
     if (!state || isJumping) return;
+    if (!state.hasJumpDrive) {
+      addLog("Jump drive not installed. Visit an Upgrade Center to install one.");
+      return;
+    }
     if (state.jumpDriveDisabled) {
       addLog("Jump drive offline. Repair required at the Upgrade Center.");
       return;

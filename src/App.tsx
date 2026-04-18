@@ -58,7 +58,7 @@ export default function App() {
   // Trading hook
   const {
     sellAll, sellItem, sellNocturnium,
-    buyUpgrade, repairJumpDrive, installMinerUpgrade
+    buyUpgrade, repairJumpDrive, installMinerUpgrade, installJumpDrive
   } = useTrading(state, setState, addLog);
 
   // Global keyboard listeners
@@ -166,6 +166,7 @@ export default function App() {
               buyUpgrade={buyUpgrade}
               repairJumpDrive={repairJumpDrive}
               installMinerUpgrade={installMinerUpgrade}
+              installJumpDrive={installJumpDrive}
             />
           )}
 

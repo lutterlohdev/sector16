@@ -87,7 +87,7 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
   const isCharging = encounter.status === 'charging';
   const isBetweenVolleys = encounter.status === 'between-volleys';
   const isPreBattle = encounter.status === 'waiting' || encounter.status === 'ambushed';
-  const canDisengage = encounter.currentVolley >= 1;
+  const canDisengage = encounter.currentVolley >= 1 && encounter.isPlayerAttacking;
   const canOvercharge = state.defense > 1 && !encounter.overcharged && encounter.isPlayerAttacking;
 
   useEffect(() => {
@@ -121,6 +121,7 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
           if (key === '2' || key === 'b') onAction('defend');
         }
         if ((key === '5' || key === 'e') && canDisengage) onAction('disengage');
+        if (key === 'c' && state.hasCloakingSpell && state.cloakCharges > 0) onAction('cloak');
       }
     };
     
@@ -313,6 +314,13 @@ export default function EncounterModal({ state, encounter, totalPower, totalDefe
                       >
                         <Move size={18} />
                         <span>[5] DISENGAGE</span>
+                      </button>
+                    )}
+
+                    {state.hasCloakingSpell && state.cloakCharges > 0 && (
+                      <button onClick={() => onAction('cloak')} className="pixel-button flex items-center justify-center gap-2 text-red-500 border-red-500/50">
+                        <Zap size={18} />
+                        <span>[C] ACTIVATE CLOAK (Guaranteed Escape)</span>
                       </button>
                     )}
                   </>
