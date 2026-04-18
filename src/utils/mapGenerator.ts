@@ -31,6 +31,7 @@ export const INITIAL_STATE: GameState = {
   hasCloakingSpell: false,
   cloakCharges: 0,
   hasMinerUpgrade: false,
+  hasJumpDrive: false,
   jumpDriveDisabled: false,
   wizardCoords: null,
   lastDirection: 'up',

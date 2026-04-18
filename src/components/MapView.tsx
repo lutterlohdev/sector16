@@ -139,18 +139,23 @@ export default function MapView({ state, currentSector, onJumpTo, isJumping }: M
         {/* Map Overlay: Sector Navigation */}
         <div className="absolute bottom-4 right-4 flex flex-col gap-2">
           <div className="pixel-border bg-black/80 p-2 space-y-2">
-            <p className="text-[8px] opacity-50 text-center uppercase">Jump Drive{state.jumpDriveDisabled ? <span className="text-red-500"> [OFFLINE]</span> : ''}</p>
+            <p className="text-[8px] opacity-50 text-center uppercase">Jump Drive
+              {state.jumpDriveDisabled ? <span className="text-red-500"> [OFFLINE]</span> : 
+               !state.hasJumpDrive ? <span className="text-red-500"> [MISSING]</span> : ''}
+            </p>
             <div className="grid grid-cols-4 gap-1">
               {state.map.map((s, i) => {
                 const currentSectorIndex = Math.floor(state.globalCoords.y / 16) * 4 + Math.floor(state.globalCoords.x / 16);
                 const isCurrent = currentSectorIndex === i;
+                const canJump = state.hasJumpDrive && !state.jumpDriveDisabled;
+                
                 return (
                   <button
                     key={i}
                     ref={el => jumpButtonsRef.current[i] = el}
                     onClick={() => onJumpTo(i)}
-                    disabled={isJumping || isCurrent || state.jumpDriveDisabled}
-                    className={`w-6 h-6 text-[8px] flex items-center justify-center border ${isCurrent ? 'bg-white text-black' : state.jumpDriveDisabled ? 'border-red-500/30 opacity-40 cursor-not-allowed' : 'border-white/30 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white focus:bg-white/20'}`}
+                    disabled={isJumping || isCurrent || !canJump}
+                    className={`w-6 h-6 text-[8px] flex items-center justify-center border ${isCurrent ? 'bg-white text-black' : !canJump ? 'border-red-500/30 opacity-40 cursor-not-allowed' : 'border-white/30 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white focus:bg-white/20'}`}
                   >
                     {s.coords.r}.{s.coords.c}
                   </button>
@@ -159,6 +164,9 @@ export default function MapView({ state, currentSector, onJumpTo, isJumping }: M
             </div>
             {state.jumpDriveDisabled && (
               <p className="text-[8px] text-red-500 text-center uppercase animate-pulse">Repair at Upgrade Center</p>
+            )}
+            {!state.hasJumpDrive && (
+              <p className="text-[8px] text-red-500 text-center uppercase animate-pulse">Install at Upgrade Center</p>
             )}
           </div>
         </div>

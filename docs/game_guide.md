@@ -104,11 +104,11 @@ On defeat:
 ### Nebula Radiation
 
 - **While moving in Nebula**:
-  - 20% chance to damage shields (if cloaking spell not active).
+  - 20% chance to disable the jump drive (if cloaking spell not active).
 - **When jumping into Nebula**:
-  - 20% chance to damage one random upgraded system among cargo/shields/weapons.
+  - 20% chance to disable the jump drive.
 
-Damaged systems can be repaired at Trade Hubs.
+Once disabled, the jump drive remains offline until it is repaired at the Upgrade Center (located in The Nocturnal Hub) for a flat fee of 64 Credits.
 
 ## Economy, Loot, and Upgrades
 
@@ -135,8 +135,8 @@ Damaged systems can be repaired at Trade Hubs.
   - Shields: +1 defense/level
   - Weapons: +1 power/level
   - Storage: +8 slots/level
-- Repair cost:
-  - `floor(currentUpgradeCost * 0.2)`
+- Jump Drive Repair:
+  - 64 Credits (Flat fee)
 
 ### Special Upgrade Center (Nocturnal Hub)
 

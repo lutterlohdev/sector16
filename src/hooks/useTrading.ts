@@ -129,5 +129,41 @@ export function useTrading(
     addLog("Nocturnium Miner Upgrade installed!");
   };
 
-  return { sellAll, sellItem, sellNocturnium, buyUpgrade, repairJumpDrive, installMinerUpgrade };
+  const installJumpDrive = (buyWithCredits: boolean) => {
+    if (!state || state.hasJumpDrive) return;
+
+    if (buyWithCredits) {
+      const cost = 512;
+      if (state.credits >= cost) {
+        setState(prev => prev ? ({ ...prev, credits: prev.credits - cost, hasJumpDrive: true }) : null);
+        addLog(`Jump Drive installed for ${cost} credits! Navigation systems active.`);
+      } else {
+        addLog(`Insufficient credits (512 CR required).`);
+      }
+    } else {
+      const reqIds = [54, 35]; // Emergency Warp Core, Solid-state Hard Drive
+      if (!reqIds.every(id => state.inventory.some(item => item.id === id) || state.storageLocker.some(item => item.id === id))) {
+        addLog("Missing required components for manual installation.");
+        return;
+      }
+      setState(prev => {
+        if (!prev) return prev;
+        let nextInventory = [...prev.inventory];
+        let nextStorage = [...prev.storageLocker];
+        reqIds.forEach(id => {
+          const invIndex = nextInventory.findIndex(item => item.id === id);
+          if (invIndex !== -1) {
+            nextInventory.splice(invIndex, 1);
+          } else {
+            const storeIndex = nextStorage.findIndex(item => item.id === id);
+            if (storeIndex !== -1) nextStorage.splice(storeIndex, 1);
+          }
+        });
+        return { ...prev, inventory: nextInventory, storageLocker: nextStorage, hasJumpDrive: true };
+      });
+      addLog("Jump Drive constructed and installed from salvaged parts!");
+    }
+  };
+
+  return { sellAll, sellItem, sellNocturnium, buyUpgrade, repairJumpDrive, installMinerUpgrade, installJumpDrive };
 }

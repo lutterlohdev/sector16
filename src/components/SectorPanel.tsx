@@ -26,6 +26,7 @@ interface SectorPanelProps {
 
   repairJumpDrive: () => void;
   installMinerUpgrade: () => void;
+  installJumpDrive: (buyWithCredits: boolean) => void;
 }
 
 export default function SectorPanel({
@@ -40,6 +41,7 @@ export default function SectorPanel({
   buyUpgrade,
   repairJumpDrive,
   installMinerUpgrade,
+  installJumpDrive,
 }: SectorPanelProps) {
   const isDocked = state.globalCoords.x % 16 === 8 && state.globalCoords.y % 16 === 8;
 
@@ -117,6 +119,7 @@ export default function SectorPanel({
                       buyUpgrade={buyUpgrade}
                       repairJumpDrive={repairJumpDrive}
                       installMinerUpgrade={installMinerUpgrade}
+                      installJumpDrive={installJumpDrive}
                     />
                   </div>
                 ) : (

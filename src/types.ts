@@ -39,6 +39,7 @@ export interface GameState {
   hasCloakingSpell: boolean;
   cloakCharges: number;
   hasMinerUpgrade: boolean;
+  hasJumpDrive: boolean;
   jumpDriveDisabled: boolean;
   wizardCoords: { x: number; y: number } | null;
   lastDirection: 'up' | 'down' | 'left' | 'right';
