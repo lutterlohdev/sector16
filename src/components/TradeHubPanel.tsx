@@ -84,14 +84,14 @@ export default function TradeHubPanel({
               disabled={state.nocturnium < 1}
               className="pixel-button text-[10px] py-1 disabled:opacity-30"
             >
-              [1] SELL 1 (3 CR)
+              <span className="hidden md:inline">[1] </span>SELL 1 (3 CR)
             </button>
             <button
               onClick={() => sellNocturnium(state.nocturnium)}
               disabled={state.nocturnium < 1}
               className="pixel-button text-[10px] py-1 disabled:opacity-30"
             >
-              [2] SELL ALL ({state.nocturnium * 3} CR)
+              <span className="hidden md:inline">[2] </span>SELL ALL ({state.nocturnium * 3} CR)
             </button>
           </div>
         </div>
@@ -121,7 +121,7 @@ export default function TradeHubPanel({
           disabled={state.nocturnium === 0 && state.inventory.length === 0}
           className="pixel-button w-full text-xs py-2 bg-white text-black hover:bg-white/80 disabled:opacity-30"
         >
-          [3] LIQUIDATE ALL CARGO
+          <span className="hidden md:inline">[3] </span>LIQUIDATE ALL CARGO
         </button>
       </div>
 

@@ -11,18 +11,18 @@ interface TopBarProps {
 
 export default function TopBar({ shipName, credits, inventoryCount, nocturnium, cargoCapacity, onResetClick }: TopBarProps) {
   return (
-    <div className="flex justify-between items-center p-4 border-b-2 border-white bg-black z-10">
+    <div className="flex justify-between items-center p-3 md:p-4 border-b-2 border-white bg-black z-10">
       <div className="flex flex-col justify-center">
-        <span className="text-lg font-bold tracking-tighter">{shipName}</span>
+        <span className="text-base md:text-lg font-bold tracking-tighter truncate max-w-[120px] md:max-w-none">{shipName}</span>
       </div>
-      <div className="flex gap-6">
+      <div className="flex gap-3 md:gap-6 text-sm">
         <button
           onClick={onResetClick}
-          className="flex items-center gap-2 text-red-500/50 hover:text-red-500 transition-colors text-[10px] tracking-widest"
+          className="flex items-center gap-1 md:gap-2 text-red-500/50 hover:text-red-500 transition-colors text-[10px] tracking-widest"
           title="RESET GAME"
         >
           <RefreshCcw size={12} />
-          <span>RESET</span>
+          <span className="hidden md:inline">RESET</span>
         </button>
         <div className="flex items-center gap-2">
           <TrendingUp size={16} />

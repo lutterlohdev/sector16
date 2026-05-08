@@ -38,6 +38,7 @@ export default function App() {
   const [wizardEncounter, setWizardEncounter] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [discovery, setDiscovery] = useState<DiscoveryState | null>(null);
+  const [mobileTab, setMobileTab] = useState<'log' | 'sector'>('log');
 
   // Encounter hook
   const {
@@ -129,7 +130,7 @@ export default function App() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex flex-col-reverse md:flex-row overflow-hidden relative">
         <AnimatePresence>
           {isJumping && <JumpOverlay isJumping={isJumping} jumpProgress={jumpProgress} />}
         </AnimatePresence>
@@ -149,28 +150,48 @@ export default function App() {
           currentSector={currentSector}
           onJumpTo={jumpTo}
           isJumping={isJumping}
+          moveGlobal={moveGlobal}
         />
 
         {/* Right Panel: Sector Details & Actions */}
-        <div className="w-1/2 flex flex-col bg-black">
+        <div className={`w-full md:w-1/2 flex flex-col bg-black overflow-hidden ${mobileTab === 'sector' ? 'flex-1 md:flex-1' : 'shrink-0 md:flex-1'}`}>
+          <div className="md:hidden flex border-b border-white shrink-0">
+            <button 
+              className={`flex-1 py-2 text-[10px] font-bold tracking-widest ${mobileTab === 'log' ? 'bg-white text-black' : 'text-white/50'}`} 
+              onClick={() => setMobileTab('log')}
+            >
+              ACTIVITY LOG
+            </button>
+            <button 
+              className={`flex-1 py-2 text-[10px] font-bold tracking-widest ${mobileTab === 'sector' ? 'bg-white text-black' : 'text-white/50'}`} 
+              onClick={() => setMobileTab('sector')}
+            >
+              SECTOR INFO
+            </button>
+          </div>
+
           {currentSector && (
-            <SectorPanel
-              state={state}
-              currentSector={currentSector}
-              isAtStorageLocker={isAtStorageLocker}
-              isAtUpgradeCenter={isAtUpgradeCenter}
-              onShowStorage={() => setShowStorage(true)}
-              sellNocturnium={sellNocturnium}
-              sellItem={sellItem}
-              sellAll={sellAll}
-              buyUpgrade={buyUpgrade}
-              repairJumpDrive={repairJumpDrive}
-              installMinerUpgrade={installMinerUpgrade}
-              installJumpDrive={installJumpDrive}
-            />
+            <div className={`flex-1 overflow-y-auto ${mobileTab === 'sector' ? 'flex' : 'hidden'} md:flex flex-col`}>
+              <SectorPanel
+                state={state}
+                currentSector={currentSector}
+                isAtStorageLocker={isAtStorageLocker}
+                isAtUpgradeCenter={isAtUpgradeCenter}
+                onShowStorage={() => setShowStorage(true)}
+                sellNocturnium={sellNocturnium}
+                sellItem={sellItem}
+                sellAll={sellAll}
+                buyUpgrade={buyUpgrade}
+                repairJumpDrive={repairJumpDrive}
+                installMinerUpgrade={installMinerUpgrade}
+                installJumpDrive={installJumpDrive}
+              />
+            </div>
           )}
 
-          <GameLog log={state.log} />
+          <div className={`${mobileTab === 'log' ? 'flex' : 'hidden'} md:flex md:flex-none shrink-0`}>
+            <GameLog log={state.log} />
+          </div>
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Zap,
@@ -11,16 +11,19 @@ import {
   Wand2,
 } from 'lucide-react';
 import { GameState, Sector } from '../types';
+import MobileControls from './MobileControls';
 
 interface MapViewProps {
   state: GameState;
   currentSector: Sector | null;
   onJumpTo: (index: number) => void;
   isJumping: boolean;
+  moveGlobal: (dx: number, dy: number) => void;
 }
 
-export default function MapView({ state, currentSector, onJumpTo, isJumping }: MapViewProps) {
+export default function MapView({ state, currentSector, onJumpTo, isJumping, moveGlobal }: MapViewProps) {
   const jumpButtonsRef = useRef<(HTMLButtonElement | null)[]>([]);
+  const [showJumpMatrix, setShowJumpMatrix] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -39,7 +42,7 @@ export default function MapView({ state, currentSector, onJumpTo, isJumping }: M
   }, [state.jumpDriveDisabled, isJumping]);
 
   return (
-    <div className="w-1/2 p-4 border-r-2 border-white overflow-hidden bg-black relative flex flex-col">
+    <div className="w-full md:w-1/2 flex-1 md:h-auto shrink-0 p-4 border-t-2 md:border-t-0 md:border-r-2 border-white overflow-hidden bg-black relative flex flex-col">
       <div className="mb-4 flex justify-between items-center px-2">
         <div>
           <h3 className="text-sm font-bold tracking-[0.2em] uppercase">{currentSector?.name}</h3>
@@ -137,8 +140,16 @@ export default function MapView({ state, currentSector, onJumpTo, isJumping }: M
         </motion.div>
 
         {/* Map Overlay: Sector Navigation */}
-        <div className="absolute bottom-4 right-4 flex flex-col gap-2">
-          <div className="pixel-border bg-black/80 p-2 space-y-2">
+        <div className="absolute top-4 right-4 md:bottom-4 md:top-auto z-20 flex flex-col items-end gap-2 pointer-events-none">
+          <button 
+            onClick={() => setShowJumpMatrix(!showJumpMatrix)}
+            className={`md:hidden pixel-button p-2 bg-black/80 flex items-center justify-center border-white/30 pointer-events-auto ${showJumpMatrix ? 'bg-white text-black' : ''}`}
+            title="Toggle Jump Drive"
+          >
+            <MapIcon size={16} />
+          </button>
+
+          <div className={`${showJumpMatrix ? 'block' : 'hidden'} md:block pixel-border bg-black/80 p-2 space-y-2 pointer-events-auto`}>
             <p className="text-[8px] opacity-50 text-center uppercase">Jump Drive
               {state.jumpDriveDisabled ? <span className="text-red-500"> [OFFLINE]</span> : 
                !state.hasJumpDrive ? <span className="text-red-500"> [MISSING]</span> : ''}
@@ -170,6 +181,8 @@ export default function MapView({ state, currentSector, onJumpTo, isJumping }: M
             )}
           </div>
         </div>
+
+        <MobileControls moveGlobal={moveGlobal} disabled={isJumping} />
       </div>
     </div>
   );

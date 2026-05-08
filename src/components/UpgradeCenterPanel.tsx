@@ -105,7 +105,7 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairJumpDrive,
                   onClick={() => buyUpgrade(type)}
                   className="flex-1 pixel-button text-xs py-1"
                 >
-                  [{type === 'cargo' ? '1' : type === 'shields' ? '2' : type === 'weapons' ? '3' : '4'}] UPGRADE ({cost} CR)
+                  <span className="hidden md:inline">[{type === 'cargo' ? '1' : type === 'shields' ? '2' : type === 'weapons' ? '3' : '4'}] </span>UPGRADE ({cost} CR)
                 </button>
               </div>
             </div>
@@ -135,7 +135,7 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairJumpDrive,
                   disabled={state.credits < 512}
                   className="w-full pixel-button text-xs py-2 disabled:opacity-30"
                 >
-                  [5] INSTALL FOR 512 CR
+                  <span className="hidden md:inline">[5] </span>INSTALL FOR 512 CR
                 </button>
               </div>
 
@@ -162,7 +162,7 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairJumpDrive,
                     onClick={() => installJumpDrive(false)}
                     className="w-full pixel-button py-2 bg-green-500/20 border-green-500 hover:bg-green-500/40 text-green-400 font-bold uppercase tracking-widest text-xs"
                   >
-                    [6] CONSTRUCT DRIVE
+                    <span className="hidden md:inline">[6] </span>CONSTRUCT DRIVE
                   </button>
                 ) : (
                   <div className="p-2 border border-white/10 bg-white/5 text-center">
@@ -189,7 +189,7 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairJumpDrive,
                 onClick={repairJumpDrive}
                 className="w-full pixel-button text-xs py-1 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
               >
-                [5] REPAIR JUMP DRIVE (64 CR)
+                <span className="hidden md:inline">[5] </span>REPAIR JUMP DRIVE (64 CR)
               </button>
             )}
           </div>
@@ -243,7 +243,7 @@ export default function UpgradeCenterPanel({ state, buyUpgrade, repairJumpDrive,
                   onClick={installMinerUpgrade}
                   className="w-full pixel-button py-2 bg-green-500/20 border-green-500 hover:bg-green-500/40 text-green-400 font-bold uppercase tracking-widest text-xs"
                 >
-                  [7] INSTALL UPGRADE
+                  <span className="hidden md:inline">[7] </span>INSTALL UPGRADE
                 </button>
               ) : (
                 <div className="p-2 border border-white/10 bg-white/5 text-center">
