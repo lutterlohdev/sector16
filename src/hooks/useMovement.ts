@@ -35,7 +35,7 @@ export function useMovement(
       // Radiation Hazard (Nebula only)
       let nextLog = [...prev.log];
       let nextJumpDriveDisabled = prev.jumpDriveDisabled;
-      if (sector.type === 'Nebula' && !prev.hasCloakingSpell && Math.random() < 0.2) {
+      if (sector.type === 'Nebula' && !prev.hasCloakingSpell && prev.hasJumpDrive && Math.random() < 0.2) {
         if (!prev.jumpDriveDisabled) {
           nextJumpDriveDisabled = true;
           nextLog = [`RADIATION HAZARD: Jump drive disabled!`, ...nextLog].slice(0, 10);
